@@ -283,10 +283,10 @@
                 recoil: 0,
                 spread: 0,
                 bulletLife: 0,
-                barrelLength: 30,
+                barrelLength: 45,
                 barrelWidth: 4,
                 drawType: 'blade',
-                swingRange: Math.PI * 0.6,
+                swingRange: Math.PI * 0.8,
                 swingSpeed: 0.3,
                 swingDuration: 15
             }
@@ -1642,7 +1642,7 @@
                         while (normalizedEnd > Math.PI) normalizedEnd -= Math.PI * 2;
                         while (normalizedEnd < -Math.PI) normalizedEnd += Math.PI * 2;
                         
-                        const inRange = dist < bladeLength + enemies[j].size + 10;
+                        const inRange = dist < bladeLength + enemies[j].size + 25;
                         const inAngle = normalizedAngle >= normalizedStart && normalizedAngle <= normalizedEnd;
                         
                         if (inRange && inAngle) {
