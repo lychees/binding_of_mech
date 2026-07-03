@@ -982,8 +982,7 @@
                     
                     // 边界检测
                     if (this.hookX < 0 || this.hookX > WORLD_WIDTH ||
-                        this.hookY < 0 || this.hookY > WORLD_HEIGHT ||
-                        this.length >= this.maxLength) {
+                        this.hookY < 0 || this.hookY > WORLD_HEIGHT) {
                         this.state = 'retracting';
                     }
                     
@@ -999,11 +998,15 @@
                         }
                     }
                     
-                    // 地面碰撞检测（任何非障碍物位置都可以钩住）
+                    // 地面碰撞检测（任何位置都可以钩住）
                     if (this.state === 'flying') {
-                        // 检查是否碰到地面（这里简单处理为钩住任何位置）
-                        // 实际上钩爪应该可以固定在任何位置，不仅仅是障碍物
-                        // 如果飞行距离达到最大长度，也钩住
+                        // 按空格键钩住地面
+                        if (keys[' ']) {
+                            this.state = 'hooked';
+                            this.hookX = this.hookX;
+                            this.hookY = this.hookY;
+                        }
+                        // 如果飞行距离达到最大长度，自动钩住
                         if (this.length >= this.maxLength) {
                             this.state = 'hooked';
                             this.hookX = this.hookX;
