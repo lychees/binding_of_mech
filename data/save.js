@@ -19,7 +19,7 @@ export function saveGame(data) {
 
 export function createDefaultSave() {
     return {
-        money: 0,
+        money: 1000,
         exp: 0,
         level: 1,
         expToNext: 100,

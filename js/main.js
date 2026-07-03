@@ -270,6 +270,9 @@ function startLevel(level) {
     mech = new Mech(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
     mech.maxSpeed = stats.maxSpeed;
     mech.dashMaxCooldown = stats.dashCooldown;
+    mech.maxHealth = stats.maxHealth;
+    mech.health = stats.maxHealth; // 满血开始
+    mech.armor = stats.armor;
     
     // 设置敌人对机甲的引用
     import('./classes/Enemy.js').then(m => m.setMechRef(mech));
@@ -447,7 +450,28 @@ function updateBullets() {
             const dy = bullets[i].y - mech.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < 20 + (bullets[i].radius || 5)) {
+                // 计算伤害（考虑装甲减伤）
+                let damage = bullets[i].damage || 5;
+                damage = damage * (1 - mech.armor);
+                mech.health -= damage;
+                // 被击中特效
+                for (let k = 0; k < 5; k++) {
+                    particles.push(new Particle(
+                        mech.x, mech.y,
+                        (Math.random() - 0.5) * 4,
+                        (Math.random() - 0.5) * 4,
+                        '#00d4ff'
+                    ));
+                }
                 bullets.splice(i, 1);
+                // 检查死亡
+                if (mech.health <= 0) {
+                    mech.health = 0;
+                    mech.isDead = true;
+                    gameRunning = false;
+                    showMissionResult(false);
+                    return;
+                }
             }
         }
         
@@ -591,6 +615,42 @@ function updateHUD() {
     document.getElementById('hudMoney').textContent = missionMoney;
     document.getElementById('hudExp').textContent = missionExp;
     document.getElementById('hudEnemies').textContent = enemies.length;
+    
+    // 绘制玩家血条
+    const barWidth = 200;
+    const barHeight = 16;
+    const barX = 10;
+    const barY = 10;
+    const healthRatio = mech.health / mech.maxHealth;
+    
+    // 背景
+    ctx.fillStyle = 'rgba(50, 50, 50, 0.8)';
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+    
+    // 血量条
+    let healthColor;
+    if (healthRatio > 0.6) healthColor = '#00ff88';
+    else if (healthRatio > 0.3) healthColor = '#ffaa00';
+    else healthColor = '#ff4444';
+    ctx.fillStyle = healthColor;
+    ctx.fillRect(barX, barY, barWidth * healthRatio, barHeight);
+    
+    // 边框
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX, barY, barWidth, barHeight);
+    
+    // 文字
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText(Math.ceil(mech.health) + ' / ' + Math.ceil(mech.maxHealth), barX + barWidth / 2 - 30, barY + 12);
+    
+    // 装甲显示
+    if (mech.armor > 0) {
+        ctx.fillStyle = '#00d4ff';
+        ctx.font = '11px monospace';
+        ctx.fillText('装甲: ' + Math.floor(mech.armor * 100) + '%', barX, barY + 30);
+    }
 }
 
 // ========== 杂兵编辑器 ==========

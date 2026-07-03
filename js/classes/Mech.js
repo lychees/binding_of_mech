@@ -48,6 +48,12 @@ class Mech {
         this.weaponKeys = ['1', '2', '3', '4', '5'];
         this.weaponList = [WEAPONS.VULCAN, WEAPONS.SHOTGUN, WEAPONS.CANNON, WEAPONS.LASER, WEAPONS.BEAM_SWORD];
         
+        // 生命系统
+        this.health = 100;
+        this.maxHealth = 100;
+        this.armor = 0; // 减伤比例 0-1
+        this.isDead = false;
+        
         // 火神炮温度系统
         this.heatLevel = 0;
         this.isOverheated = false;
