@@ -20,6 +20,115 @@
             border: 2px solid #333;
             background: #1a1a1a;
         }
+        #enemyEditor {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            background: rgba(20, 20, 30, 0.95);
+            border: 2px solid #00d4ff;
+            border-radius: 8px;
+            padding: 20px;
+            color: #fff;
+            font-size: 13px;
+            display: none;
+            z-index: 100;
+        }
+        #enemyEditor h2 {
+            margin: 0 0 15px 0;
+            color: #00d4ff;
+            font-size: 18px;
+            text-align: center;
+        }
+        #enemyEditor .editor-section {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+        #enemyEditor .editor-section h3 {
+            margin: 0 0 10px 0;
+            color: #ffaa44;
+            font-size: 14px;
+        }
+        #enemyEditor .field-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        #enemyEditor .field-row label {
+            width: 100px;
+            color: #ccc;
+        }
+        #enemyEditor .field-row input {
+            flex: 1;
+            background: #222;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        #enemyEditor .field-row input[type="color"] {
+            width: 60px;
+            flex: none;
+            height: 28px;
+            padding: 2px;
+        }
+        #enemyEditor .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: center;
+        }
+        #enemyEditor button {
+            background: #00d4ff;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 4px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        #enemyEditor button:hover {
+            background: #33ddff;
+        }
+        #enemyEditor .btn-secondary {
+            background: #444;
+            color: #fff;
+        }
+        #enemyEditor .btn-secondary:hover {
+            background: #555;
+        }
+        #enemyEditor .btn-danger {
+            background: #ff4444;
+            color: #fff;
+        }
+        #enemyEditor .btn-danger:hover {
+            background: #ff6666;
+        }
+        #editorOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 99;
+        }
+        #editorHint {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #888;
+            font-size: 12px;
+        }
         #info {
             position: absolute;
             top: 10px;
@@ -56,6 +165,21 @@
         <p><span class="key">1</span><span class="key">2</span><span class="key">3</span><span class="key">4</span><span class="key">5</span> - 切换武器</p>
         <p><span class="key">F</span> - 发射钩爪</p>
         <p><span class="key">Shift</span> + 方向键 - 冲刺</p>
+        <p><span class="key">Tab</span> - 打开杂兵编辑器</p>
+    </div>
+    <div id="editorHint">按 Tab 打开杂兵编辑器</div>
+    <div id="editorOverlay"></div>
+    <div id="enemyEditor">
+        <h2>杂兵编辑器</h2>
+        <div id="editorContent"></div>
+        <div class="btn-row">
+            <button onclick="addNewEnemyType()">+ 新增类型</button>
+            <button class="btn-secondary" onclick="exportEnemies()">导出 JSON</button>
+            <button class="btn-secondary" onclick="importEnemies()">导入 JSON</button>
+            <button class="btn-danger" onclick="applyEnemies()">应用并重生成</button>
+            <button class="btn-secondary" onclick="closeEditor()">关闭</button>
+        </div>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -112,95 +236,7 @@
             }
         }
         
-        // 杂兵类
-        class Enemy {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.angle = Math.random() * Math.PI * 2;
-                this.speed = 0.5 + Math.random() * 1;
-                this.size = 12;
-                this.color = '#ff4444';
-                this.health = 30;
-                this.maxHealth = 30;
-                this.moveTimer = 0;
-                this.moveDuration = 60 + Math.random() * 60;
-                this.shootCooldown = 0;
-                this.fireRate = 40 + Math.random() * 30;
-            }
-            
-            update() {
-                // 简单AI移动
-                this.moveTimer++;
-                if (this.moveTimer > this.moveDuration) {
-                    this.moveTimer = 0;
-                    this.moveDuration = 60 + Math.random() * 60;
-                    this.angle += (Math.random() - 0.5) * Math.PI;
-                }
-                
-                this.x += Math.sin(this.angle) * this.speed;
-                this.y -= Math.cos(this.angle) * this.speed;
-                
-                // 边界限制
-                this.x = Math.max(this.size, Math.min(WORLD_WIDTH - this.size, this.x));
-                this.y = Math.max(this.size, Math.min(WORLD_HEIGHT - this.size, this.y));
-                
-                // 射击
-                if (this.shootCooldown > 0) this.shootCooldown--;
-                
-                // 检测与玩家距离
-                const dx = mech.x - this.x;
-                const dy = mech.y - this.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                
-                if (dist < 300 && this.shootCooldown <= 0) {
-                    // 朝向玩家射击
-                    const angleToPlayer = Math.atan2(dx, -dy);
-                    bullets.push(new Bullet(
-                        this.x, this.y,
-                        angleToPlayer + (Math.random() - 0.5) * 0.3,
-                        WEAPONS.VULCAN
-                    ));
-                    this.shootCooldown = this.fireRate;
-                }
-            }
-            
-            draw() {
-                ctx.save();
-                ctx.translate(this.x - cameraX, this.y - cameraY);
-                ctx.rotate(this.angle);
-                
-                // 身体
-                ctx.fillStyle = this.color;
-                ctx.fillRect(-this.size, -this.size, this.size * 2, this.size * 2);
-                
-                // 炮管
-                ctx.fillStyle = '#aa2222';
-                ctx.fillRect(-2, -this.size - 8, 4, 8);
-                
-                // 方向指示
-                ctx.fillStyle = '#ff8888';
-                ctx.beginPath();
-                ctx.arc(0, -this.size + 4, 4, 0, Math.PI * 2);
-                ctx.fill();
-                
-                ctx.restore();
-                
-                // 血条
-                const barWidth = 20;
-                const barHeight = 3;
-                const screenX = this.x - cameraX;
-                const screenY = this.y - cameraY;
-                
-                ctx.fillStyle = '#333';
-                ctx.fillRect(screenX - barWidth/2, screenY - this.size - 10, barWidth, barHeight);
-                
-                ctx.fillStyle = '#ff4444';
-                ctx.fillRect(screenX - barWidth/2, screenY - this.size - 10, barWidth * (this.health / this.maxHealth), barHeight);
-            }
-        }
-        
-        // 武器类型定义
+        // 武器定义
         const WEAPONS = {
             VULCAN: {
                 name: '火神炮',
@@ -241,56 +277,301 @@
             },
             CANNON: {
                 name: '加农炮',
-                color: '#6a7a6a',
-                muzzleColor: '#3a4a3a',
-                bulletColor: '#ff6644',
-                bulletSpeed: 6,
-                bulletRadius: 8,
-                fireRate: 50,
-                damage: 50,
-                recoil: 1.5,
-                spread: 0.02,
-                bulletLife: 120,
-                barrelLength: 35,
+                color: '#5a5a5a',
+                muzzleColor: '#3a3a3a',
+                bulletColor: '#ff4444',
+                bulletSpeed: 10,
+                bulletRadius: 6,
+                fireRate: 45,
+                damage: 25,
+                recoil: 1.2,
+                spread: 0.05,
+                bulletLife: 80,
+                barrelLength: 32,
                 barrelWidth: 12,
                 drawType: 'cannon'
             },
             LASER: {
                 name: '激光炮',
-                color: '#9a4a6a',
-                muzzleColor: '#6a2a4a',
-                bulletColor: '#ff44aa',
-                bulletSpeed: 15,
-                bulletRadius: 4,
-                fireRate: 15,
+                color: '#4a4a8a',
+                muzzleColor: '#2a2a5a',
+                bulletColor: '#00ffff',
+                bulletSpeed: 20,
+                bulletRadius: 3,
+                fireRate: 20,
                 damage: 15,
-                recoil: 0.2,
-                spread: 0.01,
-                bulletLife: 60,
-                barrelLength: 28,
-                barrelWidth: 8,
+                recoil: 0.3,
+                spread: 0.02,
+                bulletLife: 30,
+                barrelLength: 26,
+                barrelWidth: 6,
                 drawType: 'laser'
             },
-            BLADE: {
-                name: '光束军刀',
-                color: '#00ff88',
-                muzzleColor: '#00cc66',
+            BEAM_SWORD: {
+                name: '光束刀',
+                color: '#4a8a4a',
+                muzzleColor: '#2a5a2a',
                 bulletColor: '#00ff88',
                 bulletSpeed: 0,
                 bulletRadius: 0,
-                fireRate: 20,
-                damage: 35,
+                fireRate: 25,
+                damage: 30,
                 recoil: 0,
                 spread: 0,
                 bulletLife: 0,
-                barrelLength: 45,
+                barrelLength: 35,
                 barrelWidth: 4,
-                drawType: 'blade',
+                drawType: 'beamSword',
                 swingRange: Math.PI * 0.8,
                 swingSpeed: 0.3,
                 swingDuration: 15
             }
         };
+        
+        // 杂兵模板定义
+        const ENEMY_TEMPLATES = {
+            scout: {
+                name: '侦察兵',
+                size: 10,
+                color: '#ff6644',
+                health: 20,
+                speed: 1.5,
+                fireRate: 60,
+                detectionRange: 250,
+                weapon: WEAPONS.VULCAN,
+                drawType: 'scout'
+            },
+            soldier: {
+                name: '步兵',
+                size: 14,
+                color: '#ff4444',
+                health: 40,
+                speed: 0.8,
+                fireRate: 45,
+                detectionRange: 300,
+                weapon: WEAPONS.VULCAN,
+                drawType: 'soldier'
+            },
+            heavy: {
+                name: '重装兵',
+                size: 20,
+                color: '#aa4444',
+                health: 80,
+                speed: 0.4,
+                fireRate: 30,
+                detectionRange: 350,
+                weapon: WEAPONS.CANNON,
+                drawType: 'heavy'
+            },
+            sniper: {
+                name: '狙击手',
+                size: 12,
+                color: '#ff88cc',
+                health: 25,
+                speed: 0.6,
+                fireRate: 80,
+                detectionRange: 500,
+                weapon: WEAPONS.LASER,
+                drawType: 'sniper'
+            },
+            shotgunner: {
+                name: '霰弹手',
+                size: 16,
+                color: '#ffaa44',
+                health: 50,
+                speed: 0.7,
+                fireRate: 50,
+                detectionRange: 200,
+                weapon: WEAPONS.SHOTGUN,
+                drawType: 'shotgunner'
+            }
+        };
+        
+        // 杂兵类
+        class Enemy {
+            constructor(x, y, templateKey) {
+                const template = ENEMY_TEMPLATES[templateKey] || ENEMY_TEMPLATES.soldier;
+                this.x = x;
+                this.y = y;
+                this.angle = Math.random() * Math.PI * 2;
+                this.speed = template.speed;
+                this.size = template.size;
+                this.color = template.color;
+                this.health = template.health;
+                this.maxHealth = template.health;
+                this.moveTimer = 0;
+                this.moveDuration = 60 + Math.random() * 60;
+                this.shootCooldown = 0;
+                this.fireRate = template.fireRate;
+                this.detectionRange = template.detectionRange;
+                this.weapon = template.weapon;
+                this.drawType = template.drawType;
+                this.templateKey = templateKey;
+            }
+            
+            update() {
+                // 简单AI移动
+                this.moveTimer++;
+                if (this.moveTimer > this.moveDuration) {
+                    this.moveTimer = 0;
+                    this.moveDuration = 60 + Math.random() * 60;
+                    this.angle += (Math.random() - 0.5) * Math.PI;
+                }
+                
+                this.x += Math.sin(this.angle) * this.speed;
+                this.y -= Math.cos(this.angle) * this.speed;
+                
+                // 边界限制
+                this.x = Math.max(this.size, Math.min(WORLD_WIDTH - this.size, this.x));
+                this.y = Math.max(this.size, Math.min(WORLD_HEIGHT - this.size, this.y));
+                
+                // 射击
+                if (this.shootCooldown > 0) this.shootCooldown--;
+                
+                // 检测与玩家距离
+                const dx = mech.x - this.x;
+                const dy = mech.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < this.detectionRange && this.shootCooldown <= 0) {
+                    // 朝向玩家射击
+                    const angleToPlayer = Math.atan2(dx, -dy);
+                    
+                    if (this.weapon.drawType === 'shotgun') {
+                        for (let i = 0; i < this.weapon.pelletCount; i++) {
+                            const spread = (Math.random() - 0.5) * this.weapon.spread * 2;
+                            bullets.push(new Bullet(
+                                this.x, this.y,
+                                angleToPlayer + spread,
+                                this.weapon,
+                                true
+                            ));
+                        }
+                    } else {
+                        bullets.push(new Bullet(
+                            this.x, this.y,
+                            angleToPlayer + (Math.random() - 0.5) * 0.3,
+                            this.weapon,
+                            true
+                        ));
+                    }
+                    this.shootCooldown = this.fireRate;
+                }
+            }
+            
+            draw() {
+                ctx.save();
+                ctx.translate(this.x - cameraX, this.y - cameraY);
+                ctx.rotate(this.angle);
+                
+                // 根据类型绘制不同外观
+                switch (this.drawType) {
+                    case 'scout':
+                        // 侦察兵 - 三角形，速度快
+                        ctx.fillStyle = this.color;
+                        ctx.beginPath();
+                        ctx.moveTo(0, -this.size);
+                        ctx.lineTo(-this.size, this.size);
+                        ctx.lineTo(this.size, this.size);
+                        ctx.closePath();
+                        ctx.fill();
+                        break;
+                        
+                    case 'heavy':
+                        // 重装兵 - 大六边形
+                        ctx.fillStyle = this.color;
+                        ctx.beginPath();
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (i / 6) * Math.PI * 2;
+                            const hx = Math.cos(angle) * this.size;
+                            const hy = Math.sin(angle) * this.size;
+                            if (i === 0) ctx.moveTo(hx, hy);
+                            else ctx.lineTo(hx, hy);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+                        // 装甲细节
+                        ctx.fillStyle = '#884444';
+                        ctx.beginPath();
+                        ctx.arc(0, 0, this.size * 0.5, 0, Math.PI * 2);
+                        ctx.fill();
+                        break;
+                        
+                    case 'sniper':
+                        // 狙击手 - 菱形
+                        ctx.fillStyle = this.color;
+                        ctx.beginPath();
+                        ctx.moveTo(0, -this.size);
+                        ctx.lineTo(this.size * 0.7, 0);
+                        ctx.lineTo(0, this.size);
+                        ctx.lineTo(-this.size * 0.7, 0);
+                        ctx.closePath();
+                        ctx.fill();
+                        // 瞄准镜
+                        ctx.fillStyle = '#ffccff';
+                        ctx.beginPath();
+                        ctx.arc(0, -this.size * 0.3, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        break;
+                        
+                    case 'shotgunner':
+                        // 霰弹手 - 宽矩形
+                        ctx.fillStyle = this.color;
+                        ctx.fillRect(-this.size * 1.2, -this.size * 0.8, this.size * 2.4, this.size * 1.6);
+                        // 双管
+                        ctx.fillStyle = '#cc8844';
+                        ctx.fillRect(-6, -this.size - 6, 4, 8);
+                        ctx.fillRect(2, -this.size - 6, 4, 8);
+                        break;
+                        
+                    default:
+                        // 步兵 - 方形
+                        ctx.fillStyle = this.color;
+                        ctx.fillRect(-this.size, -this.size, this.size * 2, this.size * 2);
+                        // 炮管
+                        ctx.fillStyle = '#aa2222';
+                        ctx.fillRect(-2, -this.size - 8, 4, 8);
+                        // 方向指示
+                        ctx.fillStyle = '#ff8888';
+                        ctx.beginPath();
+                        ctx.arc(0, -this.size + 4, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                }
+                
+                ctx.restore();
+                
+                // 血条
+                const barWidth = 20;
+                const barHeight = 3;
+                const screenX = this.x - cameraX;
+                const screenY = this.y - cameraY;
+                
+                ctx.fillStyle = '#333';
+                ctx.fillRect(screenX - barWidth/2, screenY - this.size - 10, barWidth, barHeight);
+                
+                ctx.fillStyle = this.color;
+                ctx.fillRect(screenX - barWidth/2, screenY - this.size - 10, barWidth * (this.health / this.maxHealth), barHeight);
+                
+                // 显示名称
+                ctx.fillStyle = '#fff';
+                ctx.font = '10px monospace';
+                ctx.fillText(ENEMY_TEMPLATES[this.templateKey]?.name || '', screenX - barWidth/2, screenY - this.size - 14);
+            }
+        }
+        
+        // 生成杂兵
+        function generateEnemies() {
+            const enemyCount = 20;
+            const types = Object.keys(ENEMY_TEMPLATES);
+            for (let i = 0; i < enemyCount; i++) {
+                const type = types[Math.floor(Math.random() * types.length)];
+                enemies.push(new Enemy(
+                    Math.random() * (WORLD_WIDTH - 200) + 100,
+                    Math.random() * (WORLD_HEIGHT - 200) + 100,
+                    type
+                ));
+            }
+        }
         
         // 二足机甲类
         class Mech {
@@ -334,7 +615,7 @@
                 this.currentWeapon = WEAPONS.VULCAN;
                 this.fireCooldown = 0;
                 this.weaponKeys = ['1', '2', '3', '4', '5'];
-                this.weaponList = [WEAPONS.VULCAN, WEAPONS.SHOTGUN, WEAPONS.CANNON, WEAPONS.LASER, WEAPONS.BLADE];
+                this.weaponList = [WEAPONS.VULCAN, WEAPONS.SHOTGUN, WEAPONS.CANNON, WEAPONS.LASER, WEAPONS.BEAM_SWORD];
                 
                 // 火神炮温度系统
                 this.heatLevel = 0;
@@ -800,7 +1081,7 @@
                         ctx.fillRect(-w.barrelWidth/2 - 1, -w.barrelLength - 2, w.barrelWidth + 2, 3);
                         break;
                         
-                    case 'blade':
+                    case 'beamSword':
                         // 光束军刀
                         const bladeLength = w.barrelLength;
                         const swingOffset = this.isSwinging ? this.swingProgress : 0;
@@ -899,7 +1180,7 @@
                 }
                 
                 // 近战攻击
-                if (w.drawType === 'blade') {
+                if (w.drawType === 'beamSword') {
                     if (!this.isSwinging) {
                         this.isSwinging = true;
                         this.swingProgress = -w.swingRange / 2;
@@ -1205,7 +1486,7 @@
         
         // 普通子弹类
         class Bullet {
-            constructor(x, y, angle, weapon) {
+            constructor(x, y, angle, weapon, isEnemyBullet = false) {
                 this.x = x;
                 this.y = y;
                 this.angle = angle;
@@ -1214,6 +1495,7 @@
                 this.radius = weapon.bulletRadius;
                 this.life = weapon.bulletLife;
                 this.damage = weapon.damage;
+                this.isEnemyBullet = isEnemyBullet;
             }
             
             update() {
@@ -1617,7 +1899,7 @@
                 }
                 
                 // 检测光束军刀近战攻击
-                if (mech.isSwinging && mech.currentWeapon.drawType === 'blade') {
+                if (mech.isSwinging && mech.currentWeapon.drawType === 'beamSword') {
                     const totalAngle = mech.bodyAngle + mech.upperAngle + mech.weaponAngle;
                     const swingStart = totalAngle - mech.currentWeapon.swingRange / 2;
                     const swingEnd = totalAngle + mech.currentWeapon.swingRange / 2;
@@ -1665,7 +1947,7 @@
                 }
                 
                 // 检测子弹是否击中玩家（只检测敌人发射的子弹）
-                if (bullets[i] instanceof Bullet && bullets[i].weapon === WEAPONS.VULCAN) {
+                if (bullets[i] instanceof Bullet && bullets[i].isEnemyBullet) {
                     const dx = bullets[i].x - mech.x;
                     const dy = bullets[i].y - mech.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1749,6 +2031,143 @@
             
             requestAnimationFrame(gameLoop);
         }
+        
+        function closeEditor() {
+            document.getElementById('enemyEditor').style.display = 'none';
+            document.getElementById('editorOverlay').style.display = 'none';
+        }
+        
+        function openEditor() {
+            document.getElementById('enemyEditor').style.display = 'block';
+            document.getElementById('editorOverlay').style.display = 'block';
+            renderEditor();
+        }
+        
+        function renderEditor() {
+            const content = document.getElementById('editorContent');
+            content.innerHTML = '';
+            
+            for (const key in ENEMY_TEMPLATES) {
+                const t = ENEMY_TEMPLATES[key];
+                const section = document.createElement('div');
+                section.className = 'editor-section';
+                section.innerHTML = `
+                    <h3>${t.name} (${key}) <button class="btn-danger" style="float:right;padding:2px 8px;font-size:11px;" onclick="deleteEnemyType('${key}')">删除</button></h3>
+                    <div class="field-row"><label>名称</label><input type="text" id="${key}_name" value="${t.name}"></div>
+                    <div class="field-row"><label>大小</label><input type="number" id="${key}_size" value="${t.size}" step="1"></div>
+                    <div class="field-row"><label>颜色</label><input type="color" id="${key}_color" value="${t.color}"></div>
+                    <div class="field-row"><label>血量</label><input type="number" id="${key}_health" value="${t.health}" step="5"></div>
+                    <div class="field-row"><label>速度</label><input type="number" id="${key}_speed" value="${t.speed}" step="0.1"></div>
+                    <div class="field-row"><label>射击间隔</label><input type="number" id="${key}_fireRate" value="${t.fireRate}" step="5"></div>
+                    <div class="field-row"><label>检测范围</label><input type="number" id="${key}_detectionRange" value="${t.detectionRange}" step="10"></div>
+                    <div class="field-row"><label>绘制类型</label><input type="text" id="${key}_drawType" value="${t.drawType}"></div>
+                `;
+                content.appendChild(section);
+            }
+        }
+        
+        function addNewEnemyType() {
+            const keys = Object.keys(ENEMY_TEMPLATES);
+            let newKey = 'custom' + (keys.length + 1);
+            while (keys.includes(newKey)) {
+                newKey = 'custom' + (Math.floor(Math.random() * 1000));
+            }
+            ENEMY_TEMPLATES[newKey] = {
+                name: '自定义' + newKey,
+                size: 14,
+                color: '#ff4444',
+                health: 40,
+                speed: 0.8,
+                fireRate: 45,
+                detectionRange: 300,
+                weapon: WEAPONS.VULCAN,
+                drawType: 'soldier'
+            };
+            renderEditor();
+        }
+        
+        function deleteEnemyType(key) {
+            if (Object.keys(ENEMY_TEMPLATES).length <= 1) {
+                alert('至少保留一种杂兵类型！');
+                return;
+            }
+            delete ENEMY_TEMPLATES[key];
+            renderEditor();
+        }
+        
+        function collectEditorData() {
+            for (const key in ENEMY_TEMPLATES) {
+                const name = document.getElementById(key + '_name');
+                if (!name) continue;
+                ENEMY_TEMPLATES[key].name = name.value;
+                ENEMY_TEMPLATES[key].size = parseFloat(document.getElementById(key + '_size').value) || 14;
+                ENEMY_TEMPLATES[key].color = document.getElementById(key + '_color').value;
+                ENEMY_TEMPLATES[key].health = parseFloat(document.getElementById(key + '_health').value) || 40;
+                ENEMY_TEMPLATES[key].speed = parseFloat(document.getElementById(key + '_speed').value) || 0.8;
+                ENEMY_TEMPLATES[key].fireRate = parseFloat(document.getElementById(key + '_fireRate').value) || 45;
+                ENEMY_TEMPLATES[key].detectionRange = parseFloat(document.getElementById(key + '_detectionRange').value) || 300;
+                ENEMY_TEMPLATES[key].drawType = document.getElementById(key + '_drawType').value || 'soldier';
+            }
+        }
+        
+        function exportEnemies() {
+            collectEditorData();
+            const data = JSON.stringify(ENEMY_TEMPLATES, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'enemy_templates.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function importEnemies() {
+            document.getElementById('importFile').click();
+        }
+        
+        function handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    for (const key in data) {
+                        if (data[key].weapon && typeof data[key].weapon === 'string') {
+                            data[key].weapon = WEAPONS[data[key].weapon] || WEAPONS.VULCAN;
+                        }
+                    }
+                    Object.assign(ENEMY_TEMPLATES, data);
+                    renderEditor();
+                    alert('导入成功！');
+                } catch (err) {
+                    alert('导入失败：' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+        
+        function applyEnemies() {
+            collectEditorData();
+            enemies.length = 0;
+            generateEnemies();
+            closeEditor();
+        }
+        
+        // Tab 键打开编辑器
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const editor = document.getElementById('enemyEditor');
+                if (editor.style.display === 'block') {
+                    closeEditor();
+                } else {
+                    openEditor();
+                }
+            }
+        });
         
         gameLoop();
     </script>
