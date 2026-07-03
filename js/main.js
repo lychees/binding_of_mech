@@ -34,6 +34,7 @@ window.showMainMenu = function() {
     document.getElementById('levelSelect').style.display = 'none';
     document.getElementById('hangar').style.display = 'none';
     document.getElementById('weaponEditor').style.display = 'none';
+    document.getElementById('enemyEditorPage').style.display = 'none';
     document.getElementById('gameContainer').style.display = 'none';
     stopGame();
 };
@@ -54,6 +55,12 @@ window.showWeaponEditor = function() {
     document.getElementById('mainMenu').style.display = 'none';
     document.getElementById('weaponEditor').style.display = 'flex';
     renderWeaponEditor();
+};
+
+window.showEnemyEditor = function() {
+    document.getElementById('mainMenu').style.display = 'none';
+    document.getElementById('enemyEditorPage').style.display = 'flex';
+    renderEnemyEditorPage();
 };
 
 window.returnToMenu = function() {
@@ -685,13 +692,52 @@ window.handleImport = function(event) {
     event.target.value = '';
 };
 
+function renderEnemyEditorPage() {
+    const content = document.getElementById('enemyEditorContent');
+    content.innerHTML = '';
+    for (const key in ENEMY_TEMPLATES) {
+        const t = ENEMY_TEMPLATES[key];
+        const section = document.createElement('div');
+        section.className = 'editor-section';
+        section.style.cssText = 'margin-bottom:15px; padding:10px; background:rgba(0,0,0,0.3); border-radius:6px; border:1px solid #333;';
+        section.innerHTML = `
+            <h3 style="color:#ffaa44; margin:0 0 10px 0; font-size:14px;">${t.name} (${key}) <button class="btn-danger" style="float:right;padding:2px 8px;font-size:11px;" onclick="deleteEnemyType('${key}')">删除</button></h3>
+            <div class="field-row"><label>名称</label><input type="text" id="ep_${key}_name" value="${t.name}"></div>
+            <div class="field-row"><label>大小</label><input type="number" id="ep_${key}_size" value="${t.size}" step="1"></div>
+            <div class="field-row"><label>颜色</label><input type="color" id="ep_${key}_color" value="${t.color}"></div>
+            <div class="field-row"><label>血量</label><input type="number" id="ep_${key}_health" value="${t.health}" step="5"></div>
+            <div class="field-row"><label>速度</label><input type="number" id="ep_${key}_speed" value="${t.speed}" step="0.1"></div>
+            <div class="field-row"><label>射击间隔</label><input type="number" id="ep_${key}_fireRate" value="${t.fireRate}" step="5"></div>
+            <div class="field-row"><label>检测范围</label><input type="number" id="ep_${key}_detectionRange" value="${t.detectionRange}" step="10"></div>
+            <div class="field-row"><label>金币掉落</label><input type="number" id="ep_${key}_money" value="${t.money}" step="5"></div>
+            <div class="field-row"><label>经验掉落</label><input type="number" id="ep_${key}_exp" value="${t.exp}" step="5"></div>
+        `;
+        content.appendChild(section);
+    }
+}
+
+function collectEnemyEditorPageData() {
+    for (const key in ENEMY_TEMPLATES) {
+        const name = document.getElementById('ep_' + key + '_name');
+        if (!name) continue;
+        ENEMY_TEMPLATES[key].name = name.value;
+        ENEMY_TEMPLATES[key].size = parseFloat(document.getElementById('ep_' + key + '_size').value) || 14;
+        ENEMY_TEMPLATES[key].color = document.getElementById('ep_' + key + '_color').value;
+        ENEMY_TEMPLATES[key].health = parseFloat(document.getElementById('ep_' + key + '_health').value) || 40;
+        ENEMY_TEMPLATES[key].speed = parseFloat(document.getElementById('ep_' + key + '_speed').value) || 0.8;
+        ENEMY_TEMPLATES[key].fireRate = parseFloat(document.getElementById('ep_' + key + '_fireRate').value) || 45;
+        ENEMY_TEMPLATES[key].detectionRange = parseFloat(document.getElementById('ep_' + key + '_detectionRange').value) || 300;
+        ENEMY_TEMPLATES[key].money = parseFloat(document.getElementById('ep_' + key + '_money').value) || 20;
+        ENEMY_TEMPLATES[key].exp = parseFloat(document.getElementById('ep_' + key + '_exp').value) || 10;
+    }
+}
+
 window.applyEnemies = function() {
-    collectEditorData();
+    collectEnemyEditorPageData();
     enemies.length = 0;
     if (currentLevel) {
         generateEnemiesForLevel(currentLevel);
     }
-    closeEditor();
 };
 
 // ========== 输入处理 ==========
