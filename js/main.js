@@ -508,7 +508,7 @@ function gameLoop() {
             }
             
             // 驾驶员死亡判定
-            if (pilot.isDead) {
+            if (pilot && pilot.isDead) {
                 gameRunning = false;
                 showMissionResult(false);
                 return;
