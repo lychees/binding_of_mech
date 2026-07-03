@@ -5,6 +5,7 @@ import { WEAPONS } from './weapons.js';
 import { loadSave, saveGame, addMoneyExp, upgradeCost, getMechStats } from '../data/save.js';
 import Mech from './classes/Mech.js';
 import Enemy from './classes/Enemy.js';
+import Pilot from './classes/Pilot.js';
 import Bullet from './classes/Bullet.js';
 import LaserBeam from './classes/LaserBeam.js';
 import Particle from './classes/Particle.js';
@@ -19,6 +20,8 @@ canvas.height = CANVAS_HEIGHT;
 window.ctx = ctx;
 
 let mech;
+let pilot = null;
+let isPilotActive = false;
 let currentLevel = null;
 let missionMoney = 0;
 let missionExp = 0;
@@ -280,6 +283,11 @@ function startLevel(level) {
     mech.maxHealth = stats.maxHealth;
     mech.health = stats.maxHealth; // 满血开始
     mech.armor = stats.armor;
+    mech.isDead = false;
+    
+    // 重置驾驶员
+    pilot = null;
+    isPilotActive = false;
     
     // 设置敌人对机甲的引用
     import('./classes/Enemy.js').then(m => m.setMechRef(mech));
@@ -307,6 +315,15 @@ function startLevel(level) {
     mech.weaponList = weaponList;
     mech.currentWeapon = weaponList[0];
     mech.weaponKeys = ['1', '2', '3', '4', '5'].slice(0, weaponList.length);
+    
+    // 鼠标位置追踪（驾驶员瞄准用）
+    window.mouseX = canvas.width / 2;
+    window.mouseY = canvas.height / 2;
+    canvas.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect();
+        window.mouseX = e.clientX - rect.left;
+        window.mouseY = e.clientY - rect.top;
+    });
     
     gameRunning = true;
     gameLoop();
@@ -396,10 +413,11 @@ function gameLoop() {
     ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // 更新相机
+    // 更新相机（跟随机甲或驾驶员）
+    const cameraTarget = isPilotActive && pilot && !pilot.isDead ? pilot : mech;
     setCamera(
-        Math.max(0, Math.min(WORLD_WIDTH - canvas.width, mech.x - canvas.width / 2)),
-        Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, mech.y - canvas.height / 2))
+        Math.max(0, Math.min(WORLD_WIDTH - canvas.width, cameraTarget.x - canvas.width / 2)),
+        Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, cameraTarget.y - canvas.height / 2))
     );
     
     drawGrid();
@@ -441,13 +459,58 @@ function gameLoop() {
         }
     }
     
-    mech.update();
-    mech.draw();
-    
-    // 机甲之间碰撞检测（玩家 vs 敌人）
-    for (let i = 0; i < enemies.length; i++) {
-        mech.resolveCollision(enemies[i]);
+    if (isPilotActive) {
+        // 驾驶员模式
+        if (pilot) {
+            pilot.update();
+            pilot.draw();
+            
+            // 检查驾驶员与机甲残骸的距离，按 G 重新驾驶
+            const distToMech = Math.sqrt((pilot.x - mech.x) ** 2 + (pilot.y - mech.y) ** 2);
+            if (distToMech < 40 && (keys['g'] || keys['G'])) {
+                // 重新驾驶机甲（如果机甲未完全损毁）
+                if (mech.health <= 0) {
+                    mech.health = mech.maxHealth * 0.3; // 修理30%血量复活
+                }
+                mech.isDead = false;
+                mech.x = pilot.x;
+                mech.y = pilot.y;
+                isPilotActive = false;
+                pilot = null;
+                keys['g'] = false;
+                keys['G'] = false;
+            }
+            
+            // 驾驶员死亡判定
+            if (pilot.isDead) {
+                gameRunning = false;
+                showMissionResult(false);
+                return;
+            }
+        }
+    } else {
+        // 机甲模式
+        mech.update();
+        mech.draw();
+        
+        // 机甲之间碰撞检测（玩家 vs 敌人）
+        for (let i = 0; i < enemies.length; i++) {
+            mech.resolveCollision(enemies[i]);
+        }
+        
+        // 按 X 弹出舱
+        if (keys['x'] || keys['X']) {
+            ejectPilot();
+            keys['x'] = false;
+            keys['X'] = false;
+        }
+        
+        // 机甲死亡判定
+        if (mech.isDead) {
+            ejectPilot();
+        }
     }
+    
     // 敌人之间碰撞检测
     for (let i = 0; i < enemies.length; i++) {
         for (let j = i + 1; j < enemies.length; j++) {
@@ -489,12 +552,43 @@ function gameLoop() {
     animationId = requestAnimationFrame(gameLoop);
 }
 
+function ejectPilot() {
+    if (isPilotActive || !mech) return;
+    isPilotActive = true;
+    pilot = new Pilot(mech.x, mech.y);
+    
+    // 机甲爆炸/弹射特效
+    for (let k = 0; k < 20; k++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 5;
+        particles.push(new Particle(
+            mech.x, mech.y,
+            Math.cos(angle) * speed,
+            Math.sin(angle) * speed,
+            k % 2 === 0 ? '#ff4444' : '#ffcc00'
+        ));
+    }
+    
+    // 如果机甲因为损毁而弹出，留下残骸作为障碍物
+    if (mech.health <= 0) {
+        mech.health = 0;
+        obstacles.push({
+            x: mech.x - 25,
+            y: mech.y - 25,
+            width: 50,
+            height: 50,
+            type: 'wreck',
+            color: '#3a3a3a'
+        });
+    }
+}
+
 function updateBullets() {
     for (let i = bullets.length - 1; i >= 0; i--) {
         bullets[i].update();
         bullets[i].draw();
         
-        // 玩家子弹击中敌人
+        // 玩家子弹击中敌人（机甲或驾驶员）
         if (bullets[i] instanceof Bullet && !bullets[i].isEnemyBullet) {
             for (let j = enemies.length - 1; j >= 0; j--) {
                 const dx = bullets[i].x - enemies[j].x;
@@ -504,9 +598,7 @@ function updateBullets() {
                     const template = ENEMY_TEMPLATES[enemies[j].templateKey];
                     enemies[j].takeHit(bullets[i].damage);
                     
-                    // 敌人死亡 -> 生成掉落物（金币袋 + 概率修理包）
                     if (enemies[j].health <= 0) {
-                        // 金币掉落
                         drops.push({
                             x: enemies[j].x,
                             y: enemies[j].y,
@@ -516,7 +608,6 @@ function updateBullets() {
                             color: '#ffaa44',
                             life: 600
                         });
-                        // 30%概率掉落修理包
                         if (Math.random() < 0.3) {
                             drops.push({
                                 x: enemies[j].x + (Math.random() - 0.5) * 20,
@@ -539,47 +630,32 @@ function updateBullets() {
         
         // 敌人子弹击中玩家
         if (bullets[i] instanceof Bullet && bullets[i].isEnemyBullet) {
-            const dx = bullets[i].x - mech.x;
-            const dy = bullets[i].y - mech.y;
+            const target = isPilotActive && pilot ? pilot : mech;
+            const hitRadius = isPilotActive && pilot ? pilot.size + 4 : 20;
+            const dx = bullets[i].x - target.x;
+            const dy = bullets[i].y - target.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 20 + (bullets[i].radius || 5)) {
-                // 计算伤害（考虑装甲减伤）
+            if (dist < hitRadius + (bullets[i].radius || 5)) {
                 let damage = bullets[i].damage || 5;
-                mech.takeHit(damage);
+                target.takeHit(damage);
                 // 被击中特效
                 for (let k = 0; k < 5; k++) {
                     particles.push(new Particle(
-                        mech.x, mech.y,
+                        target.x, target.y,
                         (Math.random() - 0.5) * 4,
                         (Math.random() - 0.5) * 4,
                         '#00d4ff'
                     ));
                 }
                 bullets.splice(i, 1);
-                // 检查死亡
-                if (mech.health <= 0) {
+                
+                if (!isPilotActive && mech.health <= 0) {
                     mech.health = 0;
                     mech.isDead = true;
-                    // 死亡爆炸特效
-                    for (let k = 0; k < 50; k++) {
-                        const angle = Math.random() * Math.PI * 2;
-                        const speed = 2 + Math.random() * 6;
-                        particles.push(new Particle(
-                            mech.x, mech.y,
-                            Math.cos(angle) * speed,
-                            Math.sin(angle) * speed,
-                            k % 3 === 0 ? '#ff4444' : k % 3 === 1 ? '#ff8800' : '#ffcc00'
-                        ));
-                    }
-                    // 添加残骸作为障碍物挡子弹
-                    obstacles.push({
-                        x: mech.x - 25,
-                        y: mech.y - 25,
-                        width: 50,
-                        height: 50,
-                        type: 'wreck',
-                        color: '#3a3a3a'
-                    });
+                    ejectPilot();
+                }
+                
+                if (isPilotActive && pilot && pilot.isDead) {
                     gameRunning = false;
                     showMissionResult(false);
                     return;
@@ -740,9 +816,10 @@ function drawMinimap() {
         ctx.arc(mapX + enemies[i].x * scaleX, mapY + enemies[i].y * scaleY, 2, 0, Math.PI * 2);
         ctx.fill();
     }
+    const minimapTarget = isPilotActive && pilot ? pilot : mech;
     ctx.fillStyle = '#00d4ff';
     ctx.beginPath();
-    ctx.arc(mapX + mech.x * scaleX, mapY + mech.y * scaleY, 3, 0, Math.PI * 2);
+    ctx.arc(mapX + minimapTarget.x * scaleX, mapY + minimapTarget.y * scaleY, 3, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#00d4ff';
     ctx.lineWidth = 1;
@@ -750,6 +827,7 @@ function drawMinimap() {
 }
 
 function drawWeaponUI() {
+    if (isPilotActive) return; // 驾驶员模式不显示武器UI
     const startX = canvas.width - 150;
     const startY = 20;
     const itemHeight = 35;
@@ -776,12 +854,13 @@ function updateHUD() {
     document.getElementById('hudEnemies').textContent = enemies.length;
     document.getElementById('hudRepair').textContent = inventory.repairKits;
     
-    // 绘制玩家血条
+    // 绘制玩家血条（机甲或驾驶员）
     const barWidth = 200;
     const barHeight = 16;
     const barX = 10;
     const barY = 10;
-    const healthRatio = mech.health / mech.maxHealth;
+    const target = isPilotActive && pilot ? pilot : mech;
+    const healthRatio = target.health / target.maxHealth;
     
     // 背景
     ctx.fillStyle = 'rgba(50, 50, 50, 0.8)';
@@ -803,7 +882,7 @@ function updateHUD() {
     // 文字
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 12px monospace';
-    ctx.fillText(Math.ceil(mech.health) + ' / ' + Math.ceil(mech.maxHealth), barX + barWidth / 2 - 30, barY + 12);
+    ctx.fillText(Math.ceil(target.health) + ' / ' + Math.ceil(target.maxHealth), barX + barWidth / 2 - 30, barY + 12);
     
     // 装甲显示
     if (mech.armor > 0) {
