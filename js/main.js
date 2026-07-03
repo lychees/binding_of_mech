@@ -1,5 +1,5 @@
 // 主入口 - 游戏主循环和UI管理
-import { keys, bullets, particles, footprints, hooks, obstacles, enemies, setCamera, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT } from './config.js';
+import { keys, bullets, particles, footprints, hooks, obstacles, enemies, drops, inventory, setCamera, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT } from './config.js';
 import { ENEMY_TEMPLATES, LEVELS } from './enemies.js';
 import { WEAPONS } from './weapons.js';
 import { loadSave, saveGame, addMoneyExp, upgradeCost, getMechStats } from '../data/save.js';
@@ -406,6 +406,9 @@ function gameLoop() {
         if (hooks[i].state === 'done') hooks.splice(i, 1);
     }
     
+    // 更新和绘制掉落物
+    updateDrops();
+    
     drawWeaponUI();
     drawMinimap();
     updateHUD();
@@ -435,9 +438,30 @@ function updateBullets() {
                     const template = ENEMY_TEMPLATES[enemies[j].templateKey];
                     enemies[j].health -= bullets[i].damage;
                     
-                    // 掉落
+                    // 敌人死亡 -> 生成掉落物（金币袋 + 概率修理包）
                     if (enemies[j].health <= 0) {
-                        missionMoney += template.money;
+                        // 金币掉落
+                        drops.push({
+                            x: enemies[j].x,
+                            y: enemies[j].y,
+                            type: 'money',
+                            amount: template.money,
+                            radius: 8,
+                            color: '#ffaa44',
+                            life: 600
+                        });
+                        // 30%概率掉落修理包
+                        if (Math.random() < 0.3) {
+                            drops.push({
+                                x: enemies[j].x + (Math.random() - 0.5) * 20,
+                                y: enemies[j].y + (Math.random() - 0.5) * 20,
+                                type: 'repair',
+                                amount: 30,
+                                radius: 10,
+                                color: '#00ff88',
+                                life: 600
+                            });
+                        }
                         missionExp += template.exp;
                         enemies.splice(j, 1);
                     }
@@ -638,6 +662,7 @@ function updateHUD() {
     document.getElementById('hudMoney').textContent = missionMoney;
     document.getElementById('hudExp').textContent = missionExp;
     document.getElementById('hudEnemies').textContent = enemies.length;
+    document.getElementById('hudRepair').textContent = inventory.repairKits;
     
     // 绘制玩家血条
     const barWidth = 200;
@@ -673,6 +698,64 @@ function updateHUD() {
         ctx.fillStyle = '#00d4ff';
         ctx.font = '11px monospace';
         ctx.fillText('装甲: ' + Math.floor(mech.armor * 100) + '%', barX, barY + 30);
+    }
+}
+
+function updateDrops() {
+    for (let i = drops.length - 1; i >= 0; i--) {
+        const d = drops[i];
+        d.life--;
+        if (d.life <= 0) {
+            drops.splice(i, 1);
+            continue;
+        }
+        // 闪烁效果
+        const blink = Math.sin(Date.now() / 200) > 0;
+        const alpha = d.life < 120 ? d.life / 120 : 1;
+        
+        ctx.globalAlpha = alpha;
+        if (d.type === 'money') {
+            // 金币袋 - 圆形
+            ctx.fillStyle = blink ? '#ffcc00' : '#ffaa44';
+            ctx.beginPath();
+            ctx.arc(d.x - cameraX, d.y - cameraY, d.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 10px monospace';
+            ctx.fillText('$', d.x - cameraX - 3, d.y - cameraY + 3);
+        } else if (d.type === 'repair') {
+            // 修理包 - 十字
+            ctx.fillStyle = blink ? '#00ffaa' : '#00ff88';
+            ctx.beginPath();
+            ctx.arc(d.x - cameraX, d.y - cameraY, d.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 10px monospace';
+            ctx.fillText('+', d.x - cameraX - 3, d.y - cameraY + 3);
+        }
+        ctx.globalAlpha = 1;
+        
+        // 检测玩家拾取
+        const dx = mech.x - d.x;
+        const dy = mech.y - d.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 30) {
+            if (d.type === 'money') {
+                missionMoney += d.amount;
+            } else if (d.type === 'repair') {
+                inventory.repairKits++;
+            }
+            // 拾取特效
+            for (let k = 0; k < 5; k++) {
+                particles.push(new Particle(
+                    d.x, d.y,
+                    (Math.random() - 0.5) * 3,
+                    (Math.random() - 0.5) * 3,
+                    d.type === 'money' ? '#ffcc00' : '#00ff88'
+                ));
+            }
+            drops.splice(i, 1);
+        }
     }
 }
 
@@ -968,6 +1051,22 @@ document.addEventListener('keydown', (e) => {
         const editor = document.getElementById('enemyEditor');
         if (editor.style.display === 'block') closeEditor();
         else openEditor();
+    }
+    if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        if (mech && inventory.repairKits > 0 && mech.health < mech.maxHealth) {
+            inventory.repairKits--;
+            mech.health = Math.min(mech.maxHealth, mech.health + 30);
+            // 修理特效
+            for (let k = 0; k < 10; k++) {
+                particles.push(new Particle(
+                    mech.x, mech.y,
+                    (Math.random() - 0.5) * 3,
+                    (Math.random() - 0.5) * 3,
+                    '#00ff88'
+                ));
+            }
+        }
     }
     if (e.key === 'Escape') {
         stopGame();

@@ -12,6 +12,8 @@ export const meleeAttacks = [];
 export const hooks = [];
 export const obstacles = [];
 export const enemies = [];
+export const drops = []; // 地面掉落物
+export const inventory = { repairKits: 0 }; // 物品栏
 
 export let cameraX = 0;
 export let cameraY = 0;
