@@ -1,6 +1,7 @@
 // 主入口 - 游戏主循环和UI管理
 import { keys, bullets, particles, footprints, hooks, obstacles, enemies, setCamera, WORLD_WIDTH, WORLD_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT } from './config.js';
-import { WEAPONS, ENEMY_TEMPLATES, LEVELS } from './enemies.js';
+import { ENEMY_TEMPLATES, LEVELS } from './enemies.js';
+import { WEAPONS } from './weapons.js';
 import { loadSave, saveGame, addMoneyExp, upgradeCost, getMechStats } from '../data/save.js';
 import Mech from './classes/Mech.js';
 import Enemy from './classes/Enemy.js';
