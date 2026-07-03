@@ -1,4 +1,4 @@
-import { keys, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT } from '../config.js';
+import { keys, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT } from '../config.js';
 
 // mech 由主模块设置
 let mechRef = null;
