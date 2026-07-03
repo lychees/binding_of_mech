@@ -459,10 +459,11 @@ function gameLoop() {
         }
     }
     
-    // 先更新机甲逻辑（即使驾驶员在外面，机甲也保持独立运行）
+    // 更新机甲（即使驾驶员在外面，机甲也保持独立运行）
+    mech.update();
+    mech.draw();
+    
     if (!isPilotActive) {
-        mech.update();
-        
         // 机甲之间碰撞检测（玩家 vs 敌人）
         for (let i = 0; i < enemies.length; i++) {
             mech.resolveCollision(enemies[i]);
@@ -475,15 +476,19 @@ function gameLoop() {
             keys['X'] = false;
         }
         
-        // 机甲死亡判定
+        // 机甲被击毁判定：玩家在内部则失败，否则爆炸继续
         if (mech.isDead) {
-            ejectPilot();
+            destroyMech();
+            gameRunning = false;
+            showMissionResult(false);
+            return;
         }
     } else {
-        // 驾驶员在外时，机甲仍独立更新血量、粒子、状态等
-        mech.update();
+        // 驾驶员在外时，机甲被击毁则爆炸，游戏继续
+        if (mech.isDead) {
+            destroyMech();
+        }
     }
-    mech.draw();
     
     if (isPilotActive) {
         // 驾驶员模式
@@ -562,30 +567,43 @@ function ejectPilot() {
     isPilotActive = true;
     pilot = new Pilot(mech.x, mech.y);
     
-    // 机甲爆炸/弹射特效
-    for (let k = 0; k < 20; k++) {
+    // 弹射特效
+    for (let k = 0; k < 10; k++) {
         const angle = Math.random() * Math.PI * 2;
-        const speed = 2 + Math.random() * 5;
+        const speed = 2 + Math.random() * 4;
         particles.push(new Particle(
             mech.x, mech.y,
             Math.cos(angle) * speed,
             Math.sin(angle) * speed,
-            k % 2 === 0 ? '#ff4444' : '#ffcc00'
+            '#ffcc00'
         ));
     }
-    
-    // 如果机甲因为损毁而弹出，留下残骸作为障碍物
-    if (mech.health <= 0) {
-        mech.health = 0;
-        obstacles.push({
-            x: mech.x - 25,
-            y: mech.y - 25,
-            width: 50,
-            height: 50,
-            type: 'wreck',
-            color: '#3a3a3a'
-        });
+}
+
+function destroyMech() {
+    if (!mech) return;
+    // 大爆炸特效
+    for (let k = 0; k < 60; k++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 7;
+        particles.push(new Particle(
+            mech.x, mech.y,
+            Math.cos(angle) * speed,
+            Math.sin(angle) * speed,
+            k % 3 === 0 ? '#ff4444' : k % 3 === 1 ? '#ff8800' : '#ffcc00'
+        ));
     }
+    // 留下残骸作为障碍物
+    obstacles.push({
+        x: mech.x - 25,
+        y: mech.y - 25,
+        width: 50,
+        height: 50,
+        type: 'wreck',
+        color: '#3a3a3a'
+    });
+    mech.health = 0;
+    mech.isDead = true;
 }
 
 function updateBullets() {
@@ -663,7 +681,14 @@ function updateBullets() {
                     if (target === mech && mech.health <= 0) {
                         mech.health = 0;
                         mech.isDead = true;
-                        if (!isPilotActive) ejectPilot();
+                        if (!isPilotActive) {
+                            destroyMech();
+                            gameRunning = false;
+                            showMissionResult(false);
+                            return;
+                        } else {
+                            destroyMech();
+                        }
                     }
                     
                     if (target === pilot && pilot.isDead) {
