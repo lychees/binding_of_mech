@@ -1404,6 +1404,54 @@
                 bullets[i].update();
                 bullets[i].draw();
                 
+                // 检测子弹是否击中敌人
+                if (bullets[i] instanceof Bullet) {
+                    for (let j = enemies.length - 1; j >= 0; j--) {
+                        const dx = bullets[i].x - enemies[j].x;
+                        const dy = bullets[i].y - enemies[j].y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (dist < enemies[j].size + bullets[i].radius) {
+                            enemies[j].health -= bullets[i].damage;
+                            // 击中特效
+                            for (let k = 0; k < 5; k++) {
+                                particles.push(new Particle(
+                                    enemies[j].x, enemies[j].y,
+                                    (Math.random() - 0.5) * 4,
+                                    (Math.random() - 0.5) * 4,
+                                    '#ff4444'
+                                ));
+                            }
+                            
+                            if (enemies[j].health <= 0) {
+                                enemies.splice(j, 1);
+                            }
+                            bullets.splice(i, 1);
+                            break;
+                        }
+                    }
+                }
+                
+                // 检测子弹是否击中玩家
+                if (bullets[i] instanceof Bullet) {
+                    const dx = bullets[i].x - mech.x;
+                    const dy = bullets[i].y - mech.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < 20 + bullets[i].radius) {
+                        // 玩家被击中特效
+                        for (let k = 0; k < 5; k++) {
+                            particles.push(new Particle(
+                                mech.x, mech.y,
+                                (Math.random() - 0.5) * 4,
+                                (Math.random() - 0.5) * 4,
+                                '#00d4ff'
+                            ));
+                        }
+                        bullets.splice(i, 1);
+                    }
+                }
+                
                 // 激光束不需要边界检测，用寿命控制
                 if (bullets[i].life <= 0 || 
                     (bullets[i] instanceof Bullet && 
