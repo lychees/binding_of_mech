@@ -459,10 +459,9 @@ function gameLoop() {
         }
     }
     
-    // 先更新机甲（即使驾驶员在外面，机甲也在原地）
+    // 先更新机甲逻辑（即使驾驶员在外面，机甲也保持独立运行）
     if (!isPilotActive) {
         mech.update();
-        mech.draw();
         
         // 机甲之间碰撞检测（玩家 vs 敌人）
         for (let i = 0; i < enemies.length; i++) {
@@ -481,9 +480,10 @@ function gameLoop() {
             ejectPilot();
         }
     } else {
-        // 机甲原地保持，敌人仍可攻击它
-        mech.draw();
+        // 驾驶员在外时，机甲仍独立更新血量、粒子、状态等
+        mech.update();
     }
+    mech.draw();
     
     if (isPilotActive) {
         // 驾驶员模式
