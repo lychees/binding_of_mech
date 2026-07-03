@@ -1404,8 +1404,8 @@
                 bullets[i].update();
                 bullets[i].draw();
                 
-                // 检测子弹是否击中敌人
-                if (bullets[i] instanceof Bullet) {
+                // 检测子弹是否击中敌人（只检测玩家发射的子弹）
+                if (bullets[i] instanceof Bullet && bullets[i].weapon !== WEAPONS.VULCAN) {
                     for (let j = enemies.length - 1; j >= 0; j--) {
                         const dx = bullets[i].x - enemies[j].x;
                         const dy = bullets[i].y - enemies[j].y;
@@ -1432,8 +1432,8 @@
                     }
                 }
                 
-                // 检测子弹是否击中玩家
-                if (bullets[i] instanceof Bullet) {
+                // 检测子弹是否击中玩家（只检测敌人发射的子弹）
+                if (bullets[i] instanceof Bullet && bullets[i].weapon === WEAPONS.VULCAN) {
                     const dx = bullets[i].x - mech.x;
                     const dy = bullets[i].y - mech.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
