@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二足机甲战斗</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 主菜单 -->
+    <div id="mainMenu">
+        <h1>二足机甲战斗</h1>
+        <button class="menu-btn" onclick="showLevelSelect()">开始任务</button>
+        <button class="menu-btn" onclick="showHangar()">格纳库</button>
+        <button class="menu-btn" onclick="showWeaponEditor()">武器工坊</button>
+    </div>
+
+    <!-- 关卡选择 -->
+    <div id="levelSelect">
+        <button class="back-btn" onclick="showMainMenu()">返回</button>
+        <h2>选择任务</h2>
+        <div class="level-grid" id="levelGrid"></div>
+    </div>
+
+    <!-- 格纳库 -->
+    <div id="hangar">
+        <button class="back-btn" onclick="showMainMenu()">返回</button>
+        <h2>格纳库</h2>
+        <div class="resource-bar" id="resourceBar">金币: 0 | 经验: 0 | 等级: 1</div>
+        <div class="hangar-tabs">
+            <div class="hangar-tab active" onclick="switchHangarTab('mech')">机甲升级</div>
+            <div class="hangar-tab" onclick="switchHangarTab('weapon')">武器升级</div>
+        </div>
+        <div class="upgrade-panel" id="upgradePanel"></div>
+    </div>
+
+    <!-- 武器工坊 -->
+    <div id="weaponEditor" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:#0a0a0a; z-index:200; flex-direction:column; align-items:center; padding-top:40px;">
+        <button class="back-btn" onclick="showMainMenu()">返回</button>
+        <h2 style="color:#00d4ff; font-size:32px; margin-bottom:20px;">武器工坊</h2>
+        <div id="weaponEditorContent" style="width:600px; max-height:70vh; overflow-y:auto;"></div>
+        <div class="btn-row" style="margin-top:20px;">
+            <button onclick="exportWeaponConfig()">导出配置</button>
+            <button class="btn-secondary" onclick="importWeaponConfig()">导入配置</button>
+            <input type="file" id="weaponImportFile" accept=".json" style="display:none" onchange="handleWeaponImport(event)">
+        </div>
+    </div>
+
+    <!-- 游戏画面 -->
+    <div id="gameContainer" style="display:none;">
+        <div id="info">
+            <h3>操作说明</h3>
+            <p><span class="key">W</span><span class="key">S</span> - 前进/后退</p>
+            <p><span class="key">A</span><span class="key">D</span> - 左右侧移</p>
+            <p><span class="key">Q</span><span class="key">E</span> - 机甲转向</p>
+            <p><span class="key">←</span><span class="key">→</span> - 武器转向</p>
+            <p><span class="key">空格</span> - 射击/近战</p>
+            <p><span class="key">1-5</span> - 切换武器</p>
+            <p><span class="key">F</span> - 钩爪</p>
+            <p><span class="key">Shift</span> + 方向 - 冲刺</p>
+            <p><span class="key">Tab</span> - 杂兵编辑器</p>
+            <p><span class="key">Esc</span> - 退出任务</p>
+        </div>
+        <div id="gameHUD">
+            <div class="hud-line">金币: <span id="hudMoney">0</span></div>
+            <div class="hud-line">经验: <span id="hudExp">0</span></div>
+            <div class="hud-line">剩余敌人: <span id="hudEnemies">0</span></div>
+        </div>
+        <div id="editorHint">按 Tab 打开杂兵编辑器</div>
+        <div id="editorOverlay"></div>
+        <div id="enemyEditor">
+            <h2>杂兵编辑器</h2>
+            <div id="editorContent"></div>
+            <div class="btn-row">
+                <button onclick="addNewEnemyType()">+ 新增类型</button>
+                <button class="btn-secondary" onclick="exportEnemies()">导出 JSON</button>
+                <button class="btn-secondary" onclick="importEnemies()">导入 JSON</button>
+                <button class="btn-danger" onclick="applyEnemies()">应用并重生成</button>
+                <button class="btn-secondary" onclick="closeEditor()">关闭</button>
+            </div>
+            <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+        </div>
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- 任务结果 -->
+        <div id="missionResult">
+            <h2 id="resultTitle">任务完成</h2>
+            <div class="reward-text">获得金币: <span id="rewardMoney">0</span></div>
+            <div class="reward-text">获得经验: <span id="rewardExp">0</span></div>
+            <button onclick="returnToMenu()">返回主菜单</button>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

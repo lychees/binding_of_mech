@@ -1,0 +1,112 @@
+// 武器定义
+export const WEAPONS = {
+    VULCAN: {
+        name: '火神炮',
+        color: '#7a3a2a',
+        muzzleColor: '#5a2a1a',
+        bulletColor: '#ff6622',
+        bulletSpeed: 12,
+        bulletRadius: 2.5,
+        fireRate: 3,
+        damage: 6,
+        recoil: 0.15,
+        spread: 0.08,
+        bulletLife: 60,
+        barrelLength: 28,
+        barrelWidth: 8,
+        drawType: 'vulcan',
+        heatPerShot: 8,
+        heatDecay: 0.5,
+        overheatThreshold: 100,
+        overheatCooldown: 120
+    },
+    SHOTGUN: {
+        name: '霰弹枪',
+        color: '#8a6a4a',
+        muzzleColor: '#5a3a2a',
+        bulletColor: '#ffaa44',
+        bulletSpeed: 8,
+        bulletRadius: 2,
+        fireRate: 30,
+        damage: 8,
+        recoil: 0.8,
+        spread: 0.3,
+        bulletLife: 40,
+        pelletCount: 5,
+        barrelLength: 22,
+        barrelWidth: 10,
+        drawType: 'shotgun'
+    },
+    CANNON: {
+        name: '加农炮',
+        color: '#5a5a5a',
+        muzzleColor: '#3a3a3a',
+        bulletColor: '#ff4444',
+        bulletSpeed: 10,
+        bulletRadius: 6,
+        fireRate: 45,
+        damage: 25,
+        recoil: 1.2,
+        spread: 0.05,
+        bulletLife: 80,
+        barrelLength: 32,
+        barrelWidth: 12,
+        drawType: 'cannon'
+    },
+    LASER: {
+        name: '激光炮',
+        color: '#4a4a8a',
+        muzzleColor: '#2a2a5a',
+        bulletColor: '#00ffff',
+        bulletSpeed: 20,
+        bulletRadius: 3,
+        fireRate: 20,
+        damage: 15,
+        recoil: 0.3,
+        spread: 0.02,
+        bulletLife: 30,
+        barrelLength: 26,
+        barrelWidth: 6,
+        drawType: 'laser'
+    },
+    BEAM_SWORD: {
+        name: '光束刀',
+        color: '#4a8a4a',
+        muzzleColor: '#2a5a2a',
+        bulletColor: '#00ff88',
+        bulletSpeed: 0,
+        bulletRadius: 0,
+        fireRate: 25,
+        damage: 30,
+        recoil: 0,
+        spread: 0,
+        bulletLife: 0,
+        barrelLength: 35,
+        barrelWidth: 4,
+        drawType: 'beamSword',
+        swingRange: Math.PI * 0.8,
+        swingSpeed: 0.3,
+        swingDuration: 15
+    }
+};
+
+// 武器升级配置
+export const WEAPON_UPGRADES = {
+    VULCAN: { baseCost: 100, maxLevel: 10 },
+    SHOTGUN: { baseCost: 150, maxLevel: 10 },
+    CANNON: { baseCost: 200, maxLevel: 10 },
+    LASER: { baseCost: 250, maxLevel: 10 },
+    BEAM_SWORD: { baseCost: 300, maxLevel: 10 }
+};
+
+// 根据等级获取武器属性
+export function getWeaponStats(key, level) {
+    const base = WEAPONS[key];
+    const multiplier = 1 + (level - 1) * 0.1;
+    return {
+        ...base,
+        damage: base.damage * multiplier,
+        fireRate: Math.max(1, base.fireRate * (1 - (level - 1) * 0.05)),
+        spread: base.spread * (1 - (level - 1) * 0.1)
+    };
+}
