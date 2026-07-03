@@ -857,9 +857,12 @@
             }
             
             fireHook() {
-                // 检查是否已有钩爪
+                // 检查是否已有钩爪，有则取消
                 for (let i = 0; i < hooks.length; i++) {
-                    if (hooks[i].state !== 'done') return;
+                    if (hooks[i].state !== 'done') {
+                        hooks[i].state = 'retracting';
+                        return;
+                    }
                 }
                 
                 const totalAngle = this.bodyAngle + this.upperAngle + this.weaponAngle;
@@ -966,20 +969,29 @@
                         this.state = 'retracting';
                     }
                 } else if (this.state === 'hooked') {
-                    // 拉拽机甲向钩爪点
+                    // 拉拽机甲向钩爪点，但允许玩家自由移动
                     const dx = this.hookX - mech.x;
                     const dy = this.hookY - mech.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (dist > 10) {
-                        const pullSpeed = 8;
-                        mech.velocityX += (dx / dist) * pullSpeed * 0.3;
-                        mech.velocityY += (dy / dist) * pullSpeed * 0.3;
-                    } else {
-                        this.state = 'retracting';
+                    // 限制最大距离为绳索长度
+                    const maxRopeLength = this.length;
+                    if (dist > maxRopeLength) {
+                        // 将机甲位置限制在绳索长度范围内
+                        const ratio = maxRopeLength / dist;
+                        mech.x = this.hookX - dx * ratio;
+                        mech.y = this.hookY - dy * ratio;
+                        // 给一点弹性缓冲
+                        mech.velocityX *= 0.5;
+                        mech.velocityY *= 0.5;
                     }
                     
-                    this.life--;
+                    // 保持轻微拉拽力让绳索绷紧
+                    if (dist > maxRopeLength * 0.8) {
+                        const pullSpeed = 2;
+                        mech.velocityX += (dx / dist) * pullSpeed * 0.1;
+                        mech.velocityY += (dy / dist) * pullSpeed * 0.1;
+                    }
                 } else if (this.state === 'retracting') {
                     this.length -= this.speed * 1.5;
                     if (this.length <= 0) {
