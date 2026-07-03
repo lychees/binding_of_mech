@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>坦克大战</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+        }
+        #gameCanvas {
+            border: 2px solid #444;
+            background: #2d2d2d;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        #info h3 {
+            margin: 0 0 10px 0;
+            color: #ff6b6b;
+        }
+        #info p {
+            margin: 5px 0;
+        }
+        .key {
+            display: inline-block;
+            background: #444;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 0 2px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>操作说明</h3>
+        <p><span class="key">W</span><span class="key">S</span> - 前进/后退</p>
+        <p><span class="key">A</span><span class="key">D</span> - 左右履带转向（差速转向）</p>
+        <p><span class="key">←</span><span class="key">→</span> - 炮台左右转向</p>
+        <p><span class="key">空格</span> - 发射炮弹</p>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 设置画布大小
+        canvas.width = 800;
+        canvas.height = 600;
+        
+        // 游戏状态
+        const keys = {};
+        const bullets = [];
+        const particles = [];
+        
+        // 坦克类
+        class Tank {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                // 车身角度（弧度）
+                this.bodyAngle = 0;
+                // 炮台角度（弧度）
+                this.turretAngle = 0;
+                
+                // 速度
+                this.velocity = 0;
+                this.maxSpeed = 3;
+                this.acceleration = 0.08;
+                this.deceleration = 0.05;
+                this.brakeDeceleration = 0.15;
+                
+                // 转向速度
+                this.turnSpeed = 0.04;
+                this.maxTurnSpeed = 0.06;
+                this.turnVelocity = 0;
+                this.turnDeceleration = 0.02;
+                
+                // 炮台转向速度
+                this.turretTurnSpeed = 0.03;
+                this.turretTurnVelocity = 0;
+                this.turretTurnDeceleration = 0.015;
+                
+                // 坦克尺寸
+                this.width = 40;
+                this.length = 60;
+                this.turretLength = 35;
+                
+                // 履带痕迹
+                this.tracks = [];
+                this.trackTimer = 0;
+            }
+            
+            update() {
+                // 处理前进后退
+                if (keys['w'] || keys['W']) {
+                    this.velocity += this.acceleration;
+                } else if (keys['s'] || keys['S']) {
+                    this.velocity -= this.acceleration;
+                } else {
+                    // 自然减速（惯性）
+                    if (this.velocity > 0) {
+                        this.velocity -= this.deceleration;
+                        if (this.velocity < 0) this.velocity = 0;
+                    } else if (this.velocity < 0) {
+                        this.velocity += this.deceleration;
+                        if (this.velocity > 0) this.velocity = 0;
+                    }
+                }
+                
+                // 限制最大速度
+                this.velocity = Math.max(-this.maxSpeed, Math.min(this.maxSpeed, this.velocity));
+                
+                // 处理履带差速转向（A/D键）
+                let targetTurn = 0;
+                if (keys['a'] || keys['A']) {
+                    targetTurn = -this.maxTurnSpeed;
+                } else if (keys['d'] || keys['D']) {
+                    targetTurn = this.maxTurnSpeed;
+                }
+                
+                // 转向惯性
+                if (targetTurn !== 0) {
+                    this.turnVelocity += (targetTurn - this.turnVelocity) * 0.1;
+                } else {
+                    this.turnVelocity *= (1 - this.turnDeceleration);
+                    if (Math.abs(this.turnVelocity) < 0.001) this.turnVelocity = 0;
+                }
+                
+                // 转向效果与速度相关（坦克原地转向效果较弱，移动时转向更强）
+                const speedFactor = Math.abs(this.velocity) / this.maxSpeed;
+                const turnMultiplier = 0.3 + speedFactor * 0.7;
+                this.bodyAngle += this.turnVelocity * turnMultiplier;
+                
+                // 计算移动
+                this.x += Math.cos(this.bodyAngle) * this.velocity;
+                this.y += Math.sin(this.bodyAngle) * this.velocity;
+                
+                // 边界检测
+                this.x = Math.max(this.width/2, Math.min(canvas.width - this.width/2, this.x));
+                this.y = Math.max(this.length/2, Math.min(canvas.height - this.length/2, this.y));
+                
+                // 处理炮台转向（左右箭头键）
+                let targetTurretTurn = 0;
+                if (keys['ArrowLeft']) {
+                    targetTurretTurn = -this.turretTurnSpeed;
+                } else if (keys['ArrowRight']) {
+                    targetTurretTurn = this.turretTurnSpeed;
+                }
+                
+                // 炮台转向惯性
+                if (targetTurretTurn !== 0) {
+                    this.turretTurnVelocity += (targetTurretTurn - this.turretTurnVelocity) * 0.15;
+                } else {
+                    this.turretTurnVelocity *= (1 - this.turretTurnDeceleration);
+                    if (Math.abs(this.turretTurnVelocity) < 0.001) this.turretTurnVelocity = 0;
+                }
+                
+                this.turretAngle += this.turretTurnVelocity;
+                
+                // 添加履带痕迹
+                if (Math.abs(this.velocity) > 0.1) {
+                    this.trackTimer++;
+                    if (this.trackTimer % 3 === 0) {
+                        this.addTrack();
+                    }
+                }
+                
+                // 更新履带痕迹
+                this.tracks = this.tracks.filter(track => {
+                    track.opacity -= 0.003;
+                    return track.opacity > 0;
+                });
+            }
+            
+            addTrack() {
+                const cos = Math.cos(this.bodyAngle);
+                const sin = Math.sin(this.bodyAngle);
+                const halfWidth = this.width / 2 - 3;
+                
+                // 左履带痕迹
+                this.tracks.push({
+                    x: this.x - sin * halfWidth,
+                    y: this.y + cos * halfWidth,
+                    angle: this.bodyAngle,
+                    opacity: 0.4
+                });
+                
+                // 右履带痕迹
+                this.tracks.push({
+                    x: this.x + sin * halfWidth,
+                    y: this.y - cos * halfWidth,
+                    angle: this.bodyAngle,
+                    opacity: 0.4
+                });
+            }
+            
+            draw() {
+                // 绘制履带痕迹
+                this.tracks.forEach(track => {
+                    ctx.save();
+                    ctx.translate(track.x, track.y);
+                    ctx.rotate(track.angle);
+                    ctx.fillStyle = `rgba(50, 50, 50, ${track.opacity})`;
+                    ctx.fillRect(-3, -8, 6, 16);
+                    ctx.restore();
+                });
+                
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                
+                // 绘制车身阴影
+                ctx.save();
+                ctx.translate(3, 3);
+                ctx.rotate(this.bodyAngle);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fillRect(-this.width/2, -this.length/2, this.width, this.length);
+                ctx.restore();
+                
+                // 绘制车身
+                ctx.rotate(this.bodyAngle);
+                
+                // 履带
+                ctx.fillStyle = '#3a3a3a';
+                ctx.fillRect(-this.width/2 - 2, -this.length/2, 6, this.length);
+                ctx.fillRect(this.width/2 - 4, -this.length/2, 6, this.length);
+                
+                // 履带纹理
+                ctx.strokeStyle = '#555';
+                ctx.lineWidth = 1;
+                for (let i = -this.length/2 + 5; i < this.length/2; i += 8) {
+                    ctx.beginPath();
+                    ctx.moveTo(-this.width/2 - 2, i);
+                    ctx.lineTo(-this.width/2 + 4, i);
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(this.width/2 - 4, i);
+                    ctx.lineTo(this.width/2 + 2, i);
+                    ctx.stroke();
+                }
+                
+                // 车身主体
+                ctx.fillStyle = '#6b8e23';
+                ctx.fillRect(-this.width/2 + 2, -this.length/2 + 2, this.width - 4, this.length - 4);
+                
+                // 车身细节
+                ctx.fillStyle = '#556b2f';
+                ctx.fillRect(-this.width/2 + 6, -this.length/2 + 8, this.width - 12, this.length - 16);
+                
+                // 引擎盖
+                ctx.fillStyle = '#7a9f3a';
+                ctx.fillRect(-8, -this.length/2 + 4, 16, 12);
+                
+                // 保存车身坐标系，切换到炮台
+                ctx.save();
+                ctx.rotate(this.turretAngle - this.bodyAngle);
+                
+                // 炮台底座
+                ctx.fillStyle = '#4a5d23';
+                ctx.beginPath();
+                ctx.arc(0, 0, 12, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 炮管
+                ctx.fillStyle = '#3a4a1c';
+                ctx.fillRect(-3, -this.turretLength, 6, this.turretLength);
+                
+                // 炮口
+                ctx.fillStyle = '#2a3a12';
+                ctx.fillRect(-4, -this.turretLength - 2, 8, 4);
+                
+                // 炮管高光
+                ctx.fillStyle = '#5a6d2f';
+                ctx.fillRect(-1, -this.turretLength + 2, 2, this.turretLength - 4);
+                
+                ctx.restore();
+                
+                // 车身装饰
+                ctx.fillStyle = '#7a9f3a';
+                ctx.fillRect(-6, 8, 12, 8);
+                ctx.fillRect(-4, 20, 8, 4);
+                
+                ctx.restore();
+            }
+            
+            shoot() {
+                const cos = Math.cos(this.bodyAngle + this.turretAngle);
+                const sin = Math.sin(this.bodyAngle + this.turretAngle);
+                
+                const bulletX = this.x + cos * this.turretLength;
+                const bulletY = this.y + sin * this.turretLength;
+                
+                bullets.push(new Bullet(bulletX, bulletY, this.bodyAngle + this.turretAngle));
+                
+                // 发射特效
+                for (let i = 0; i < 5; i++) {
+                    particles.push(new Particle(
+                        bulletX, 
+                        bulletY, 
+                        (Math.random() - 0.5) * 2,
+                        (Math.random() - 0.5) * 2,
+                        '#ff6600'
+                    ));
+                }
+            }
+        }
+        
+        // 子弹类
+        class Bullet {
+            constructor(x, y, angle) {
+                this.x = x;
+                this.y = y;
+                this.angle = angle;
+                this.speed = 8;
+                this.radius = 3;
+                this.life = 100;
+            }
+            
+            update() {
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+                this.life--;
+            }
+            
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                
+                // 子弹尾焰
+                ctx.fillStyle = 'rgba(255, 100, 0, 0.5)';
+                ctx.fillRect(-8, -2, 8, 4);
+                
+                // 子弹主体
+                ctx.fillStyle = '#ffcc00';
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+        }
+        
+        // 粒子类
+        class Particle {
+            constructor(x, y, vx, vy, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.color = color;
+                this.life = 30;
+                this.maxLife = 30;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= 0.95;
+                this.vy *= 0.95;
+                this.life--;
+            }
+            
+            draw() {
+                const opacity = this.life / this.maxLife;
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = opacity;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 2 + opacity * 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+        
+        // 创建坦克
+        const tank = new Tank(canvas.width / 2, canvas.height / 2);
+        
+        // 键盘事件
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            
+            // 空格发射
+            if (e.key === ' ') {
+                e.preventDefault();
+                tank.shoot();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        // 绘制背景网格
+        function drawGrid() {
+            ctx.strokeStyle = '#3a3a3a';
+            ctx.lineWidth = 0.5;
+            
+            for (let x = 0; x < canvas.width; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            
+            for (let y = 0; y < canvas.height; y += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+        }
+        
+        // 游戏循环
+        function gameLoop() {
+            // 清空画布
+            ctx.fillStyle = '#2d2d2d';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制背景
+            drawGrid();
+            
+            // 更新和绘制坦克
+            tank.update();
+            tank.draw();
+            
+            // 更新和绘制子弹
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].update();
+                bullets[i].draw();
+                
+                // 移除超出边界或寿命结束的子弹
+                if (bullets[i].life <= 0 || 
+                    bullets[i].x < 0 || bullets[i].x > canvas.width ||
+                    bullets[i].y < 0 || bullets[i].y > canvas.height) {
+                    bullets.splice(i, 1);
+                }
+            }
+            
+            // 更新和绘制粒子
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+            
+            // 显示速度信息
+            ctx.fillStyle = '#fff';
+            ctx.font = '14px monospace';
+            ctx.fillText(`速度: ${(Math.abs(tank.velocity) * 10).toFixed(1)} km/h`, 10, canvas.height - 60);
+            ctx.fillText(`车身角度: ${(tank.bodyAngle * 180 / Math.PI % 360).toFixed(1)}°`, 10, canvas.height - 40);
+            ctx.fillText(`炮台角度: ${(tank.turretAngle * 180 / Math.PI % 360).toFixed(1)}°`, 10, canvas.height - 20);
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // 启动游戏
+        gameLoop();
+    </script>
+</body>
+</html>
