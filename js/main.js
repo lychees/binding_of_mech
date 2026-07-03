@@ -459,13 +459,39 @@ function gameLoop() {
         }
     }
     
+    // 先更新机甲（即使驾驶员在外面，机甲也在原地）
+    if (!isPilotActive) {
+        mech.update();
+        mech.draw();
+        
+        // 机甲之间碰撞检测（玩家 vs 敌人）
+        for (let i = 0; i < enemies.length; i++) {
+            mech.resolveCollision(enemies[i]);
+        }
+        
+        // 按 X 弹出舱
+        if (keys['x'] || keys['X']) {
+            ejectPilot();
+            keys['x'] = false;
+            keys['X'] = false;
+        }
+        
+        // 机甲死亡判定
+        if (mech.isDead) {
+            ejectPilot();
+        }
+    } else {
+        // 机甲原地保持，敌人仍可攻击它
+        mech.draw();
+    }
+    
     if (isPilotActive) {
         // 驾驶员模式
         if (pilot) {
             pilot.update();
             pilot.draw();
             
-            // 检查驾驶员与机甲残骸的距离，按 G 重新驾驶
+            // 检查驾驶员与机甲的距离，按 G 重新驾驶
             const distToMech = Math.sqrt((pilot.x - mech.x) ** 2 + (pilot.y - mech.y) ** 2);
             if (distToMech < 40 && (keys['g'] || keys['G'])) {
                 // 重新驾驶机甲（如果机甲未完全损毁）
@@ -487,27 +513,6 @@ function gameLoop() {
                 showMissionResult(false);
                 return;
             }
-        }
-    } else {
-        // 机甲模式
-        mech.update();
-        mech.draw();
-        
-        // 机甲之间碰撞检测（玩家 vs 敌人）
-        for (let i = 0; i < enemies.length; i++) {
-            mech.resolveCollision(enemies[i]);
-        }
-        
-        // 按 X 弹出舱
-        if (keys['x'] || keys['X']) {
-            ejectPilot();
-            keys['x'] = false;
-            keys['X'] = false;
-        }
-        
-        // 机甲死亡判定
-        if (mech.isDead) {
-            ejectPilot();
         }
     }
     
@@ -926,9 +931,10 @@ function updateDrops() {
         }
         ctx.globalAlpha = 1;
         
-        // 检测玩家拾取
-        const dx = mech.x - d.x;
-        const dy = mech.y - d.y;
+        // 检测玩家拾取（机甲或驾驶员）
+        const pickupTarget = isPilotActive && pilot ? pilot : mech;
+        const dx = pickupTarget.x - d.x;
+        const dy = pickupTarget.y - d.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < 30) {
             if (d.type === 'money') {
