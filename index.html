@@ -14,6 +14,21 @@
         <button class="menu-btn" onclick="showHangar()">格纳库</button>
         <button class="menu-btn" onclick="showWeaponEditor()">武器工坊</button>
         <button class="menu-btn" onclick="showEnemyEditor()">杂兵编辑器</button>
+        <button class="menu-btn" onclick="showLevelEditor()">关卡编辑器</button>
+    </div>
+
+    <!-- 关卡编辑器 -->
+    <div id="levelEditorPage" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:#0a0a0a; z-index:200; flex-direction:column; align-items:center; padding-top:40px; overflow-y:auto;">
+        <button class="back-btn" onclick="showMainMenu()">返回</button>
+        <h2 style="color:#00d4ff; font-size:32px; margin-bottom:20px;">关卡编辑器</h2>
+        <div id="levelEditorContent" style="width:700px; max-height:70vh; overflow-y:auto;"></div>
+        <div class="btn-row" style="margin-top:20px; margin-bottom:40px;">
+            <button onclick="addNewLevel()">+ 新增关卡</button>
+            <button class="btn-secondary" onclick="exportLevels()">导出 JSON</button>
+            <button class="btn-secondary" onclick="importLevels()">导入 JSON</button>
+            <button class="btn-danger" onclick="applyLevels()">应用</button>
+        </div>
+        <input type="file" id="levelImportFile" accept=".json" style="display:none" onchange="handleLevelImport(event)">
     </div>
 
     <!-- 杂兵编辑器 -->

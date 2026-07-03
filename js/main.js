@@ -35,6 +35,7 @@ window.showMainMenu = function() {
     document.getElementById('hangar').style.display = 'none';
     document.getElementById('weaponEditor').style.display = 'none';
     document.getElementById('enemyEditorPage').style.display = 'none';
+    document.getElementById('levelEditorPage').style.display = 'none';
     document.getElementById('gameContainer').style.display = 'none';
     stopGame();
 };
@@ -61,6 +62,12 @@ window.showEnemyEditor = function() {
     document.getElementById('mainMenu').style.display = 'none';
     document.getElementById('enemyEditorPage').style.display = 'flex';
     renderEnemyEditorPage();
+};
+
+window.showLevelEditor = function() {
+    document.getElementById('mainMenu').style.display = 'none';
+    document.getElementById('levelEditorPage').style.display = 'flex';
+    renderLevelEditorPage();
 };
 
 window.returnToMenu = function() {
@@ -738,6 +745,127 @@ window.applyEnemies = function() {
     if (currentLevel) {
         generateEnemiesForLevel(currentLevel);
     }
+};
+
+// ========== 关卡编辑器 ==========
+function renderLevelEditorPage() {
+    const content = document.getElementById('levelEditorContent');
+    content.innerHTML = '';
+    for (let i = 0; i < LEVELS.length; i++) {
+        const lv = LEVELS[i];
+        const section = document.createElement('div');
+        section.className = 'editor-section';
+        section.style.cssText = 'margin-bottom:15px; padding:10px; background:rgba(0,0,0,0.3); border-radius:6px; border:1px solid #333;';
+        const enemyTypes = Object.keys(ENEMY_TEMPLATES);
+        const typeCheckboxes = enemyTypes.map(type => {
+            const checked = lv.enemyTypes.includes(type) || lv.enemyTypes.includes('all') ? 'checked' : '';
+            return `<label style="color:#ccc; margin-right:10px; font-size:12px;"><input type="checkbox" id="lep_${lv.id}_${type}" ${checked}> ${ENEMY_TEMPLATES[type]?.name || type}</label>`;
+        }).join('');
+        section.innerHTML = `
+            <h3 style="color:#ffaa44; margin:0 0 10px 0; font-size:14px;">第${lv.id}关 - ${lv.name} <button class="btn-danger" style="float:right;padding:2px 8px;font-size:11px;" onclick="deleteLevel(${lv.id})">删除</button></h3>
+            <div class="field-row"><label>名称</label><input type="text" id="lep_${lv.id}_name" value="${lv.name}"></div>
+            <div class="field-row"><label>敌人数量</label><input type="number" id="lep_${lv.id}_enemyCount" value="${lv.enemyCount}" step="1"></div>
+            <div class="field-row"><label>奖励金币</label><input type="number" id="lep_${lv.id}_reward" value="${lv.reward}" step="10"></div>
+            <div class="field-row" style="flex-wrap:wrap;"><label>敌人类型</label><div style="flex:1;">${typeCheckboxes}</div></div>
+            <div class="field-row"><label><input type="checkbox" id="lep_${lv.id}_all" ${lv.enemyTypes.includes('all') ? 'checked' : ''}> 包含所有类型</label></div>
+            <div class="field-row"><label><input type="checkbox" id="lep_${lv.id}_unlocked" ${lv.unlocked ? 'checked' : ''}> 默认解锁</label></div>
+        `;
+        content.appendChild(section);
+    }
+}
+
+function collectLevelEditorData() {
+    for (let i = 0; i < LEVELS.length; i++) {
+        const lv = LEVELS[i];
+        const name = document.getElementById('lep_' + lv.id + '_name');
+        if (!name) continue;
+        lv.name = name.value;
+        lv.enemyCount = parseInt(document.getElementById('lep_' + lv.id + '_enemyCount').value) || 10;
+        lv.reward = parseInt(document.getElementById('lep_' + lv.id + '_reward').value) || 100;
+        lv.unlocked = document.getElementById('lep_' + lv.id + '_unlocked').checked;
+        
+        const allChecked = document.getElementById('lep_' + lv.id + '_all').checked;
+        if (allChecked) {
+            lv.enemyTypes = ['all'];
+        } else {
+            lv.enemyTypes = [];
+            const enemyTypes = Object.keys(ENEMY_TEMPLATES);
+            enemyTypes.forEach(type => {
+                const cb = document.getElementById('lep_' + lv.id + '_' + type);
+                if (cb && cb.checked) lv.enemyTypes.push(type);
+            });
+            if (lv.enemyTypes.length === 0) lv.enemyTypes = ['scout'];
+        }
+    }
+}
+
+window.addNewLevel = function() {
+    const newId = LEVELS.length > 0 ? Math.max(...LEVELS.map(l => l.id)) + 1 : 1;
+    LEVELS.push({
+        id: newId,
+        name: '自定义关卡' + newId,
+        enemyCount: 15,
+        enemyTypes: ['scout', 'soldier'],
+        reward: 150,
+        unlocked: false
+    });
+    renderLevelEditorPage();
+};
+
+window.deleteLevel = function(id) {
+    if (LEVELS.length <= 1) {
+        alert('至少保留一个关卡！');
+        return;
+    }
+    const idx = LEVELS.findIndex(l => l.id === id);
+    if (idx >= 0) {
+        LEVELS.splice(idx, 1);
+        renderLevelEditorPage();
+    }
+};
+
+window.exportLevels = function() {
+    collectLevelEditorData();
+    const data = JSON.stringify(LEVELS, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'level_config.json';
+    a.click();
+    URL.revokeObjectURL(url);
+};
+
+window.importLevels = function() {
+    document.getElementById('levelImportFile').click();
+};
+
+window.handleLevelImport = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        try {
+            const data = JSON.parse(ev.target.result);
+            if (Array.isArray(data)) {
+                LEVELS.length = 0;
+                data.forEach(l => LEVELS.push(l));
+                renderLevelEditorPage();
+                alert('导入成功！');
+            } else {
+                alert('格式错误：应为关卡数组');
+            }
+        } catch (err) {
+            alert('导入失败: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+};
+
+window.applyLevels = function() {
+    collectLevelEditorData();
+    alert('关卡配置已应用！');
 };
 
 // ========== 输入处理 ==========
