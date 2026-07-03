@@ -1453,7 +1453,7 @@
                 }
                 
                 // 激光束不需要边界检测，用寿命控制
-                if (bullets[i].life <= 0 || 
+                if (bullets[i] && bullets[i].life <= 0 || 
                     (bullets[i] instanceof Bullet && 
                      (bullets[i].x < 0 || bullets[i].x > WORLD_WIDTH ||
                       bullets[i].y < 0 || bullets[i].y > WORLD_HEIGHT))) {
