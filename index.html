@@ -88,7 +88,6 @@
             <p><span class="key">1-5</span> - 切换武器</p>
             <p><span class="key">F</span> - 钩爪</p>
             <p><span class="key">Shift</span> + 方向 - 冲刺</p>
-            <p><span class="key">Tab</span> - 杂兵编辑器</p>
             <p><span class="key">Esc</span> - 退出任务</p>
         </div>
         <div id="gameHUD">
@@ -96,20 +95,6 @@
             <div class="hud-line">经验: <span id="hudExp">0</span></div>
             <div class="hud-line">剩余敌人: <span id="hudEnemies">0</span></div>
             <div class="hud-line">修理包: <span id="hudRepair">0</span> (<span class="key">R</span>使用)</div>
-        </div>
-        <div id="editorHint">按 Tab 打开杂兵编辑器</div>
-        <div id="editorOverlay"></div>
-        <div id="enemyEditor">
-            <h2>杂兵编辑器</h2>
-            <div id="editorContent"></div>
-            <div class="btn-row">
-                <button onclick="addNewEnemyType()">+ 新增类型</button>
-                <button class="btn-secondary" onclick="exportEnemies()">导出 JSON</button>
-                <button class="btn-secondary" onclick="importEnemies()">导入 JSON</button>
-                <button class="btn-danger" onclick="applyEnemies()">应用并重生成</button>
-                <button class="btn-secondary" onclick="closeEditor()">关闭</button>
-            </div>
-            <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
         </div>
         <canvas id="gameCanvas"></canvas>
 

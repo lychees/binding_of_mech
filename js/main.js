@@ -633,38 +633,50 @@ function updateBullets() {
             }
         }
         
-        // 敌人子弹击中玩家
+        // 敌人子弹击中玩家（同时检查机甲和驾驶员）
         if (bullets[i] instanceof Bullet && bullets[i].isEnemyBullet) {
-            const target = isPilotActive && pilot ? pilot : mech;
-            const hitRadius = isPilotActive && pilot ? pilot.size + 4 : 20;
-            const dx = bullets[i].x - target.x;
-            const dy = bullets[i].y - target.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < hitRadius + (bullets[i].radius || 5)) {
-                let damage = bullets[i].damage || 5;
-                target.takeHit(damage);
-                // 被击中特效
-                for (let k = 0; k < 5; k++) {
-                    particles.push(new Particle(
-                        target.x, target.y,
-                        (Math.random() - 0.5) * 4,
-                        (Math.random() - 0.5) * 4,
-                        '#00d4ff'
-                    ));
+            const possibleTargets = [];
+            if (mech && mech.health > 0) possibleTargets.push({ t: mech, r: 20 });
+            if (isPilotActive && pilot && !pilot.isDead) possibleTargets.push({ t: pilot, r: pilot.size + 4 });
+            
+            let hit = false;
+            for (let k = 0; k < possibleTargets.length; k++) {
+                const target = possibleTargets[k].t;
+                const hitRadius = possibleTargets[k].r;
+                const dx = bullets[i].x - target.x;
+                const dy = bullets[i].y - target.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < hitRadius + (bullets[i].radius || 5)) {
+                    let damage = bullets[i].damage || 5;
+                    target.takeHit(damage);
+                    // 被击中特效
+                    for (let k = 0; k < 5; k++) {
+                        particles.push(new Particle(
+                            target.x, target.y,
+                            (Math.random() - 0.5) * 4,
+                            (Math.random() - 0.5) * 4,
+                            '#00d4ff'
+                        ));
+                    }
+                    hit = true;
+                    
+                    if (target === mech && mech.health <= 0) {
+                        mech.health = 0;
+                        mech.isDead = true;
+                        if (!isPilotActive) ejectPilot();
+                    }
+                    
+                    if (target === pilot && pilot.isDead) {
+                        gameRunning = false;
+                        showMissionResult(false);
+                        return;
+                    }
+                    break;
                 }
+            }
+            if (hit) {
                 bullets.splice(i, 1);
-                
-                if (!isPilotActive && mech.health <= 0) {
-                    mech.health = 0;
-                    mech.isDead = true;
-                    ejectPilot();
-                }
-                
-                if (isPilotActive && pilot && pilot.isDead) {
-                    gameRunning = false;
-                    showMissionResult(false);
-                    return;
-                }
+                continue;
             }
         }
         
@@ -1243,12 +1255,6 @@ document.addEventListener('keydown', (e) => {
         if (mech) mech.fireHook();
     }
     if (e.key === 'Shift') e.preventDefault();
-    if (e.key === 'Tab') {
-        e.preventDefault();
-        const editor = document.getElementById('enemyEditor');
-        if (editor.style.display === 'block') closeEditor();
-        else openEditor();
-    }
     if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
         if (mech && inventory.repairKits > 0 && mech.health < mech.maxHealth) {
