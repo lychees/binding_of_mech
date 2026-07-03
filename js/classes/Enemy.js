@@ -1,4 +1,4 @@
-import { bullets, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT } from '../config.js';
+import { bullets, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, obstacles } from '../config.js';
 import { WEAPONS } from '../weapons.js';
 import { ENEMY_TEMPLATES } from '../enemies.js';
 import Bullet from './Bullet.js';
@@ -39,6 +39,26 @@ class Enemy {
         
         this.x += Math.sin(this.angle) * this.speed;
         this.y -= Math.cos(this.angle) * this.speed;
+        
+        // 障碍物碰撞检测
+        for (let i = 0; i < obstacles.length; i++) {
+            const obs = obstacles[i];
+            if (this.x + this.size > obs.x && this.x - this.size < obs.x + obs.width &&
+                this.y + this.size > obs.y && this.y - this.size < obs.y + obs.height) {
+                // 简单推开
+                const centerX = obs.x + obs.width / 2;
+                const centerY = obs.y + obs.height / 2;
+                const dx = this.x - centerX;
+                const dy = this.y - centerY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0) {
+                    this.x += (dx / dist) * 3;
+                    this.y += (dy / dist) * 3;
+                }
+                // 改变方向
+                this.angle += Math.PI / 2;
+            }
+        }
         
         // 边界限制
         this.x = Math.max(this.size, Math.min(WORLD_WIDTH - this.size, this.x));
