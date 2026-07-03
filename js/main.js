@@ -409,10 +409,51 @@ function gameLoop() {
     for (let i = enemies.length - 1; i >= 0; i--) {
         enemies[i].update();
         enemies[i].draw();
+        
+        // 检查着火等持续伤害导致的死亡
+        if (enemies[i].health <= 0) {
+            const template = ENEMY_TEMPLATES[enemies[i].templateKey];
+            if (template) {
+                drops.push({
+                    x: enemies[i].x,
+                    y: enemies[i].y,
+                    type: 'money',
+                    amount: template.money,
+                    radius: 8,
+                    color: '#ffaa44',
+                    life: 600
+                });
+                if (Math.random() < 0.3) {
+                    drops.push({
+                        x: enemies[i].x + (Math.random() - 0.5) * 20,
+                        y: enemies[i].y + (Math.random() - 0.5) * 20,
+                        type: 'repair',
+                        amount: 30,
+                        radius: 10,
+                        color: '#00ff88',
+                        life: 600
+                    });
+                }
+                missionExp += template.exp;
+            }
+            enemies.splice(i, 1);
+            continue;
+        }
     }
     
     mech.update();
     mech.draw();
+    
+    // 机甲之间碰撞检测（玩家 vs 敌人）
+    for (let i = 0; i < enemies.length; i++) {
+        mech.resolveCollision(enemies[i]);
+    }
+    // 敌人之间碰撞检测
+    for (let i = 0; i < enemies.length; i++) {
+        for (let j = i + 1; j < enemies.length; j++) {
+            enemies[i].resolveCollision(enemies[j]);
+        }
+    }
     
     // 更新子弹和碰撞检测
     updateBullets();
@@ -461,7 +502,7 @@ function updateBullets() {
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 if (dist < enemies[j].size + (bullets[i].radius || 5)) {
                     const template = ENEMY_TEMPLATES[enemies[j].templateKey];
-                    enemies[j].health -= bullets[i].damage;
+                    enemies[j].takeHit(bullets[i].damage);
                     
                     // 敌人死亡 -> 生成掉落物（金币袋 + 概率修理包）
                     if (enemies[j].health <= 0) {
@@ -504,8 +545,7 @@ function updateBullets() {
             if (dist < 20 + (bullets[i].radius || 5)) {
                 // 计算伤害（考虑装甲减伤）
                 let damage = bullets[i].damage || 5;
-                damage = damage * (1 - mech.armor);
-                mech.health -= damage;
+                mech.takeHit(damage);
                 // 被击中特效
                 for (let k = 0; k < 5; k++) {
                     particles.push(new Particle(
@@ -564,11 +604,13 @@ function updateBullets() {
                 const dist = Math.sqrt((enemies[j].x - cx) ** 2 + (enemies[j].y - cy) ** 2);
                 
                 if (dist < enemies[j].size + bullets[i].width) {
-                    const template = ENEMY_TEMPLATES[enemies[j].templateKey];
-                    enemies[j].health -= bullets[i].damage;
+                    enemies[j].takeHit(bullets[i].damage);
                     if (enemies[j].health <= 0) {
-                        missionMoney += template.money;
-                        missionExp += template.exp;
+                        const template = ENEMY_TEMPLATES[enemies[j].templateKey];
+                        if (template) {
+                            missionMoney += template.money;
+                            missionExp += template.exp;
+                        }
                         enemies.splice(j, 1);
                     }
                 }

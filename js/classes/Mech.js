@@ -54,7 +54,20 @@ class Mech {
         this.armor = 0; // 减伤比例 0-1
         this.isDead = false;
         
-        // 火神炮温度系统
+        // 着火状态
+        this.isBurning = false;
+        this.burnTimer = 0;
+        this.burnDamageTimer = 0;
+        this.burnChance = 0.15; // 被击中时着火概率
+        
+        // 碰撞体积
+        this.collisionRadius = 25;
+        this.collisionDamageMultiplier = 0.8;
+        this.lastCollisionTime = 0;
+        this.collisionCooldown = 15; // 帧
+        
+        // 冒烟效果
+        this.smokeTimer = 0;
         this.heatLevel = 0;
         this.isOverheated = false;
         this.overheatTimer = 0;
@@ -182,6 +195,9 @@ class Mech {
         if (keys['a'] || keys['A']) moveSide = -1;
         else if (keys['d'] || keys['D']) moveSide = 1;
         
+        // 碰撞冷却递减
+        if (this.lastCollisionTime > 0) this.lastCollisionTime--;
+        
         // 检测冲刺输入（Shift + 方向键）
         if (keys['Shift'] && !this.isDashing && this.dashCooldown <= 0) {
             let dashX = 0;
@@ -308,6 +324,70 @@ class Mech {
             this.jetParticles[i].update();
             if (this.jetParticles[i].life <= 0) {
                 this.jetParticles.splice(i, 1);
+            }
+        }
+        
+        // 着火持续掉血
+        if (this.isBurning) {
+            this.burnTimer--;
+            this.burnDamageTimer--;
+            if (this.burnDamageTimer <= 0) {
+                this.burnDamageTimer = 30; // 每0.5秒（30帧）掉一次血
+                this.health -= 2;
+                if (this.health <= 0) {
+                    this.health = 0;
+                    this.isDead = true;
+                }
+            }
+            if (this.burnTimer <= 0) {
+                this.isBurning = false;
+            }
+            // 着火火焰粒子
+            if (Math.random() < 0.4) {
+                particles.push(new Particle(
+                    this.x + (Math.random() - 0.5) * 20,
+                    this.y - 10 + (Math.random() - 0.5) * 20,
+                    (Math.random() - 0.5) * 1,
+                    -0.5 - Math.random() * 1,
+                    Math.random() < 0.5 ? '#ff4400' : '#ffaa00'
+                ));
+            }
+        }
+        
+        // 受损冒烟（黄血或红血）
+        const healthRatio = this.health / this.maxHealth;
+        if (healthRatio < 0.6 && healthRatio > 0) {
+            this.smokeTimer--;
+            const smokeThreshold = healthRatio < 0.3 ? 3 : 8;
+            if (this.smokeTimer <= 0) {
+                this.smokeTimer = smokeThreshold;
+                particles.push({
+                    x: this.x + (Math.random() - 0.5) * 20,
+                    y: this.y - 5 + (Math.random() - 0.5) * 10,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: -0.3 - Math.random() * 0.5,
+                    life: 40 + Math.random() * 20,
+                    maxLife: 60,
+                    color: healthRatio < 0.3 ? '#555555' : '#777777',
+                    size: 4 + Math.random() * 4,
+                    update: function() {
+                        this.x += this.vx;
+                        this.y += this.vy;
+                        this.vx *= 0.98;
+                        this.vy *= 0.98;
+                        this.size += 0.1;
+                        this.life--;
+                    },
+                    draw: function() {
+                        const opacity = Math.max(0, this.life / this.maxLife);
+                        ctx.fillStyle = this.color;
+                        ctx.globalAlpha = opacity * 0.4;
+                        ctx.beginPath();
+                        ctx.arc(this.x - cameraX, this.y - cameraY, this.size, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.globalAlpha = 1;
+                    }
+                });
             }
         }
     }
@@ -568,6 +648,82 @@ class Mech {
                 
                 ctx.restore();
                 break;
+        }
+    }
+    
+    takeHit(damage) {
+        let actualDamage = damage * (1 - this.armor);
+        this.health -= actualDamage;
+        
+        // 着火判定
+        if (Math.random() < this.burnChance) {
+            this.isBurning = true;
+            this.burnTimer = 180; // 3秒
+            this.burnDamageTimer = 30;
+        }
+        
+        if (this.health <= 0) {
+            this.health = 0;
+            this.isDead = true;
+        }
+    }
+    
+    resolveCollision(other) {
+        if (this.isDead || other.isDead) return;
+        
+        const dx = other.x - this.x;
+        const dy = other.y - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const minDist = this.collisionRadius + other.collisionRadius;
+        
+        if (dist < minDist && dist > 0) {
+            // 分离
+            const overlap = minDist - dist;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            this.x -= nx * overlap * 0.5;
+            this.y -= ny * overlap * 0.5;
+            other.x += nx * overlap * 0.5;
+            other.y += ny * overlap * 0.5;
+            
+            // 相对速度
+            const rvx = other.velocityX - this.velocityX;
+            const rvy = other.velocityY - this.velocityY;
+            const velAlongNormal = rvx * nx + rvy * ny;
+            
+            if (velAlongNormal < 0) {
+                // 碰撞冷却
+                if (this.lastCollisionTime > 0 || other.lastCollisionTime > 0) return;
+                
+                // 反弹
+                const restitution = 0.5;
+                const impulse = -(1 + restitution) * velAlongNormal / 2;
+                this.velocityX -= impulse * nx;
+                this.velocityY -= impulse * ny;
+                other.velocityX += impulse * nx;
+                other.velocityY += impulse * ny;
+                
+                // 碰撞伤害 = 相对速度 * 伤害系数
+                const relativeSpeed = Math.abs(velAlongNormal);
+                const damage = relativeSpeed * this.collisionDamageMultiplier;
+                if (damage >= 1) {
+                    this.takeHit(damage * 0.5);
+                    other.takeHit(damage * 0.5);
+                    this.lastCollisionTime = this.collisionCooldown;
+                    other.lastCollisionTime = other.collisionCooldown;
+                    
+                    // 碰撞火花
+                    for (let i = 0; i < 6; i++) {
+                        particles.push(new Particle(
+                            this.x + nx * this.collisionRadius + (Math.random() - 0.5) * 10,
+                            this.y + ny * this.collisionRadius + (Math.random() - 0.5) * 10,
+                            (Math.random() - 0.5) * 4,
+                            (Math.random() - 0.5) * 4,
+                            '#ffcc00'
+                        ));
+                    }
+                }
+            }
         }
     }
     
