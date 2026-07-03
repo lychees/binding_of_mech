@@ -905,30 +905,30 @@
                 ctx.lineWidth = this.width + 6;
                 ctx.lineCap = 'round';
                 ctx.beginPath();
-                ctx.moveTo(this.x, this.y);
-                ctx.lineTo(this.x + sin * this.length, this.y - cos * this.length);
+                ctx.moveTo(this.x - cameraX, this.y - cameraY);
+                ctx.lineTo(this.x + sin * this.length - cameraX, this.y - cos * this.length - cameraY);
                 ctx.stroke();
                 
                 // 光束主体
                 ctx.strokeStyle = 'rgba(255, 68, 170, ' + (opacity * 0.6) + ')';
                 ctx.lineWidth = this.width + 2;
                 ctx.beginPath();
-                ctx.moveTo(this.x, this.y);
-                ctx.lineTo(this.x + sin * this.length, this.y - cos * this.length);
+                ctx.moveTo(this.x - cameraX, this.y - cameraY);
+                ctx.lineTo(this.x + sin * this.length - cameraX, this.y - cos * this.length - cameraY);
                 ctx.stroke();
                 
                 // 光束核心
                 ctx.strokeStyle = 'rgba(255, 200, 230, ' + opacity + ')';
                 ctx.lineWidth = this.width * 0.5;
                 ctx.beginPath();
-                ctx.moveTo(this.x, this.y);
-                ctx.lineTo(this.x + sin * this.length, this.y - cos * this.length);
+                ctx.moveTo(this.x - cameraX, this.y - cameraY);
+                ctx.lineTo(this.x + sin * this.length - cameraX, this.y - cos * this.length - cameraY);
                 ctx.stroke();
                 
                 // 端点发光
                 ctx.fillStyle = 'rgba(255, 255, 255, ' + opacity + ')';
                 ctx.beginPath();
-                ctx.arc(this.x + sin * this.length, this.y - cos * this.length, this.width, 0, Math.PI * 2);
+                ctx.arc(this.x + sin * this.length - cameraX, this.y - cos * this.length - cameraY, this.width, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
@@ -1404,7 +1404,7 @@
                 bullets[i].update();
                 bullets[i].draw();
                 
-                // 检测子弹是否击中敌人（只检测玩家发射的子弹）
+                // 检测子弹是否击中敌人（检测所有玩家发射的子弹和激光束）
                 if (bullets[i] instanceof Bullet && bullets[i].weapon !== WEAPONS.VULCAN) {
                     for (let j = enemies.length - 1; j >= 0; j--) {
                         const dx = bullets[i].x - enemies[j].x;
@@ -1428,6 +1428,92 @@
                             }
                             bullets.splice(i, 1);
                             break;
+                        }
+                    }
+                }
+                
+                // 检测激光束击中敌人
+                if (bullets[i] instanceof LaserBeam) {
+                    const cos = Math.cos(bullets[i].angle);
+                    const sin = Math.sin(bullets[i].angle);
+                    const beamEndX = bullets[i].x + sin * bullets[i].length;
+                    const beamEndY = bullets[i].y - cos * bullets[i].length;
+                    
+                    for (let j = enemies.length - 1; j >= 0; j--) {
+                        // 计算敌人到激光线段的距离
+                        const dx = enemies[j].x - bullets[i].x;
+                        const dy = enemies[j].y - bullets[i].y;
+                        const proj = dx * sin + dy * (-cos);
+                        const clampedProj = Math.max(0, Math.min(bullets[i].length, proj));
+                        const closestX = bullets[i].x + sin * clampedProj;
+                        const closestY = bullets[i].y - cos * clampedProj;
+                        const distX = enemies[j].x - closestX;
+                        const distY = enemies[j].y - closestY;
+                        const dist = Math.sqrt(distX * distX + distY * distY);
+                        
+                        if (dist < enemies[j].size + bullets[i].width) {
+                            enemies[j].health -= bullets[i].damage;
+                            // 击中特效
+                            for (let k = 0; k < 3; k++) {
+                                particles.push(new Particle(
+                                    enemies[j].x, enemies[j].y,
+                                    (Math.random() - 0.5) * 4,
+                                    (Math.random() - 0.5) * 4,
+                                    '#ff44aa'
+                                ));
+                            }
+                            
+                            if (enemies[j].health <= 0) {
+                                enemies.splice(j, 1);
+                            }
+                        }
+                    }
+                }
+                
+                // 检测光束军刀近战攻击
+                if (mech.isSwinging && mech.currentWeapon.drawType === 'blade') {
+                    const totalAngle = mech.bodyAngle + mech.upperAngle + mech.weaponAngle;
+                    const swingStart = totalAngle - mech.currentWeapon.swingRange / 2;
+                    const swingEnd = totalAngle + mech.currentWeapon.swingRange / 2;
+                    const bladeLength = mech.currentWeapon.barrelLength;
+                    
+                    for (let j = enemies.length - 1; j >= 0; j--) {
+                        const dx = enemies[j].x - mech.x;
+                        const dy = enemies[j].y - mech.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        const angleToEnemy = Math.atan2(dx, -dy);
+                        
+                        // 归一化角度到 [-PI, PI]
+                        let normalizedAngle = angleToEnemy;
+                        while (normalizedAngle > Math.PI) normalizedAngle -= Math.PI * 2;
+                        while (normalizedAngle < -Math.PI) normalizedAngle += Math.PI * 2;
+                        
+                        let normalizedStart = swingStart;
+                        while (normalizedStart > Math.PI) normalizedStart -= Math.PI * 2;
+                        while (normalizedStart < -Math.PI) normalizedStart += Math.PI * 2;
+                        
+                        let normalizedEnd = swingEnd;
+                        while (normalizedEnd > Math.PI) normalizedEnd -= Math.PI * 2;
+                        while (normalizedEnd < -Math.PI) normalizedEnd += Math.PI * 2;
+                        
+                        const inRange = dist < bladeLength + enemies[j].size + 10;
+                        const inAngle = normalizedAngle >= normalizedStart && normalizedAngle <= normalizedEnd;
+                        
+                        if (inRange && inAngle) {
+                            enemies[j].health -= mech.currentWeapon.damage;
+                            // 击中特效
+                            for (let k = 0; k < 8; k++) {
+                                particles.push(new Particle(
+                                    enemies[j].x, enemies[j].y,
+                                    (Math.random() - 0.5) * 6,
+                                    (Math.random() - 0.5) * 6,
+                                    '#00ff88'
+                                ));
+                            }
+                            
+                            if (enemies[j].health <= 0) {
+                                enemies.splice(j, 1);
+                            }
                         }
                     }
                 }
