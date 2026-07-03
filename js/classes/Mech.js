@@ -1,4 +1,4 @@
-import { keys, particles, footprints, bullets, hooks, obstacles, cameraX, cameraY } from '../config.js';
+import { keys, particles, footprints, bullets, hooks, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT } from '../config.js';
 import { WEAPONS } from '../weapons.js';
 import Bullet from './Bullet.js';
 import LaserBeam from './LaserBeam.js';
