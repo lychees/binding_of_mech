@@ -998,6 +998,18 @@
                             break;
                         }
                     }
+                    
+                    // 地面碰撞检测（任何非障碍物位置都可以钩住）
+                    if (this.state === 'flying') {
+                        // 检查是否碰到地面（这里简单处理为钩住任何位置）
+                        // 实际上钩爪应该可以固定在任何位置，不仅仅是障碍物
+                        // 如果飞行距离达到最大长度，也钩住
+                        if (this.length >= this.maxLength) {
+                            this.state = 'hooked';
+                            this.hookX = this.hookX;
+                            this.hookY = this.hookY;
+                        }
+                    }
                 } else if (this.state === 'hooked') {
                     // 拉拽机甲向钩爪点，但允许玩家自由移动
                     const dx = this.hookX - mech.x;
@@ -1040,30 +1052,34 @@
                 const cos = Math.cos(this.angle);
                 const sin = Math.sin(this.angle);
                 
+                // 绳索起点始终跟随机甲当前枪口位置
+                const muzzleX = mech.x + sin * mech.currentWeapon.barrelLength - cameraX;
+                const muzzleY = mech.y - cos * mech.currentWeapon.barrelLength - cameraY;
+                
                 // 计算当前钩爪位置
                 let currentHookX, currentHookY;
                 if (this.state === 'retracting') {
-                    currentHookX = this.startX + sin * this.length;
-                    currentHookY = this.startY - cos * this.length;
+                    currentHookX = this.startX + sin * this.length - cameraX;
+                    currentHookY = this.startY - cos * this.length - cameraY;
                 } else {
-                    currentHookX = this.hookX;
-                    currentHookY = this.hookY;
+                    currentHookX = this.hookX - cameraX;
+                    currentHookY = this.hookY - cameraY;
                 }
                 
                 // 绳索
                 ctx.strokeStyle = '#888';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.moveTo(this.startX - cameraX, this.startY - cameraY);
-                ctx.lineTo(currentHookX - cameraX, currentHookY - cameraY);
+                ctx.moveTo(muzzleX, muzzleY);
+                ctx.lineTo(currentHookX, currentHookY);
                 ctx.stroke();
                 
                 // 绳索高光
                 ctx.strokeStyle = '#aaa';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
-                ctx.moveTo(this.startX - cameraX, this.startY - cameraY);
-                ctx.lineTo(currentHookX - cameraX, currentHookY - cameraY);
+                ctx.moveTo(muzzleX, muzzleY);
+                ctx.lineTo(currentHookX, currentHookY);
                 ctx.stroke();
                 
                 // 钩爪头
