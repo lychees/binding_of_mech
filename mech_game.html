@@ -53,6 +53,7 @@
         <p><span class="key">Q</span><span class="key">E</span> - 机甲左右转向</p>
         <p><span class="key">←</span><span class="key">→</span> - 上半身/武器左右转向</p>
         <p><span class="key">空格</span> - 发射武器</p>
+        <p><span class="key">1</span><span class="key">2</span><span class="key">3</span><span class="key">4</span> - 切换武器</p>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -67,6 +68,75 @@
         const bullets = [];
         const particles = [];
         const footprints = [];
+        
+        // 武器类型定义
+        const WEAPONS = {
+            RIFLE: {
+                name: '突击步枪',
+                color: '#7a9aba',
+                muzzleColor: '#3a5a7a',
+                bulletColor: '#00d4ff',
+                bulletSpeed: 10,
+                bulletRadius: 3,
+                fireRate: 8,
+                damage: 10,
+                recoil: 0.3,
+                spread: 0.05,
+                bulletLife: 80,
+                barrelLength: 30,
+                barrelWidth: 6,
+                drawType: 'rifle'
+            },
+            SHOTGUN: {
+                name: '霰弹枪',
+                color: '#8a6a4a',
+                muzzleColor: '#5a3a2a',
+                bulletColor: '#ffaa44',
+                bulletSpeed: 8,
+                bulletRadius: 2,
+                fireRate: 30,
+                damage: 8,
+                recoil: 0.8,
+                spread: 0.3,
+                bulletLife: 40,
+                pelletCount: 5,
+                barrelLength: 22,
+                barrelWidth: 10,
+                drawType: 'shotgun'
+            },
+            CANNON: {
+                name: '加农炮',
+                color: '#6a7a6a',
+                muzzleColor: '#3a4a3a',
+                bulletColor: '#ff6644',
+                bulletSpeed: 6,
+                bulletRadius: 8,
+                fireRate: 50,
+                damage: 50,
+                recoil: 1.5,
+                spread: 0.02,
+                bulletLife: 120,
+                barrelLength: 35,
+                barrelWidth: 12,
+                drawType: 'cannon'
+            },
+            LASER: {
+                name: '激光炮',
+                color: '#9a4a6a',
+                muzzleColor: '#6a2a4a',
+                bulletColor: '#ff44aa',
+                bulletSpeed: 15,
+                bulletRadius: 4,
+                fireRate: 15,
+                damage: 15,
+                recoil: 0.2,
+                spread: 0.01,
+                bulletLife: 60,
+                barrelLength: 28,
+                barrelWidth: 8,
+                drawType: 'laser'
+            }
+        };
         
         // 二足机甲类
         class Mech {
@@ -114,9 +184,29 @@
                 
                 // 喷气特效
                 this.jetParticles = [];
+                
+                // 武器系统
+                this.currentWeapon = WEAPONS.RIFLE;
+                this.fireCooldown = 0;
+                this.weaponKeys = ['1', '2', '3', '4'];
+                this.weaponList = [WEAPONS.RIFLE, WEAPONS.SHOTGUN, WEAPONS.CANNON, WEAPONS.LASER];
             }
             
             update() {
+                // 处理武器切换
+                for (let i = 0; i < this.weaponKeys.length; i++) {
+                    if (keys[this.weaponKeys[i]]) {
+                        this.currentWeapon = this.weaponList[i];
+                        keys[this.weaponKeys[i]] = false; // 防止连续切换
+                        break;
+                    }
+                }
+                
+                // 处理射击冷却
+                if (this.fireCooldown > 0) {
+                    this.fireCooldown--;
+                }
+                
                 // 处理前进后退
                 let moveForward = 0;
                 if (keys['w'] || keys['W']) moveForward = 1;
@@ -378,33 +468,92 @@
                 // 绘制武器（相对上半身旋转）
                 ctx.save();
                 ctx.rotate(this.weaponAngle);
+                this.drawWeapon();
+                ctx.restore();
+                
+                ctx.restore();
+                ctx.restore();
+            }
+            
+            drawWeapon() {
+                const w = this.currentWeapon;
                 
                 // 武器底座
-                ctx.fillStyle = '#6a8aaa';
+                ctx.fillStyle = w.color;
                 ctx.beginPath();
                 ctx.arc(0, -5, 6, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // 主武器
-                ctx.fillStyle = '#7a9aba';
-                ctx.fillRect(-3, -30, 6, 25);
-                
-                // 武器细节
-                ctx.fillStyle = '#5a7a9a';
-                ctx.fillRect(-2, -28, 4, 20);
-                
-                // 武器口
-                ctx.fillStyle = '#3a5a7a';
-                ctx.fillRect(-4, -32, 8, 4);
-                
-                // 武器高光
-                ctx.fillStyle = '#9abaca';
-                ctx.fillRect(-1, -26, 2, 16);
-                
-                ctx.restore();
-                
-                ctx.restore();
-                ctx.restore();
+                switch (w.drawType) {
+                    case 'rifle':
+                        // 突击步枪 - 细长枪管
+                        ctx.fillStyle = w.color;
+                        ctx.fillRect(-w.barrelWidth/2, -w.barrelLength, w.barrelWidth, w.barrelLength);
+                        ctx.fillStyle = w.muzzleColor;
+                        ctx.fillRect(-w.barrelWidth/2 - 1, -w.barrelLength, w.barrelWidth + 2, 4);
+                        ctx.fillStyle = '#9abaca';
+                        ctx.fillRect(-1, -w.barrelLength + 2, 2, w.barrelLength - 4);
+                        // 弹匣
+                        ctx.fillStyle = '#4a5a6a';
+                        ctx.fillRect(-2, -15, 4, 10);
+                        break;
+                        
+                    case 'shotgun':
+                        // 霰弹枪 - 粗短双管
+                        ctx.fillStyle = w.color;
+                        ctx.fillRect(-w.barrelWidth/2, -w.barrelLength, w.barrelWidth, w.barrelLength);
+                        // 双管效果
+                        ctx.fillStyle = w.muzzleColor;
+                        ctx.fillRect(-4, -w.barrelLength, 3, w.barrelLength - 2);
+                        ctx.fillRect(1, -w.barrelLength, 3, w.barrelLength - 2);
+                        // 散热孔
+                        ctx.fillStyle = '#6a5a4a';
+                        for (let i = 0; i < 3; i++) {
+                            ctx.fillRect(-6, -w.barrelLength + 5 + i * 6, 12, 2);
+                        }
+                        break;
+                        
+                    case 'cannon':
+                        // 加农炮 - 粗长炮管，带支架
+                        ctx.fillStyle = w.color;
+                        ctx.fillRect(-w.barrelWidth/2, -w.barrelLength, w.barrelWidth, w.barrelLength);
+                        // 炮口制退器
+                        ctx.fillStyle = w.muzzleColor;
+                        ctx.fillRect(-w.barrelWidth/2 - 2, -w.barrelLength - 3, w.barrelWidth + 4, 6);
+                        // 支架
+                        ctx.fillStyle = '#5a6a5a';
+                        ctx.fillRect(-3, -10, 6, 8);
+                        ctx.fillRect(-8, -8, 16, 3);
+                        // 高光
+                        ctx.fillStyle = '#8a9a8a';
+                        ctx.fillRect(-2, -w.barrelLength + 3, 4, w.barrelLength - 6);
+                        break;
+                        
+                    case 'laser':
+                        // 激光炮 - 科技风格，带能量环
+                        ctx.fillStyle = w.color;
+                        ctx.fillRect(-w.barrelWidth/2, -w.barrelLength, w.barrelWidth, w.barrelLength);
+                        // 能量核心
+                        ctx.fillStyle = '#ff88cc';
+                        ctx.beginPath();
+                        ctx.arc(0, -w.barrelLength/2, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        // 能量环
+                        ctx.strokeStyle = '#ff44aa';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(0, -w.barrelLength/2, 5, 0, Math.PI * 2);
+                        ctx.stroke();
+                        // 发光效果
+                        ctx.fillStyle = 'rgba(255, 100, 180, 0.3)';
+                        ctx.beginPath();
+                        ctx.arc(0, -w.barrelLength/2, 8, 0, Math.PI * 2);
+                        ctx.fill();
+                        // 炮口
+                        ctx.fillStyle = '#ff66aa';
+                        ctx.fillRect(-w.barrelWidth/2 - 1, -w.barrelLength - 2, w.barrelWidth + 2, 3);
+                        break;
+                }
             }
             
             drawLeg(xOffset, footOffset, kneeOffset, isLeft) {
@@ -441,40 +590,67 @@
             }
             
             shoot() {
+                if (this.fireCooldown > 0) return;
+                
+                const w = this.currentWeapon;
+                this.fireCooldown = w.fireRate;
+                
                 const totalAngle = this.bodyAngle + this.upperAngle + this.weaponAngle;
                 const cos = Math.cos(totalAngle);
                 const sin = Math.sin(totalAngle);
                 
-                const bulletX = this.x + sin * 30 - 5;
-                const bulletY = this.y - cos * 30;
+                const muzzleX = this.x + sin * w.barrelLength;
+                const muzzleY = this.y - cos * w.barrelLength;
                 
-                bullets.push(new Bullet(bulletX, bulletY, totalAngle));
+                // 根据武器类型发射不同的子弹
+                if (w.drawType === 'shotgun') {
+                    // 霰弹枪发射多个弹丸
+                    for (let i = 0; i < w.pelletCount; i++) {
+                        const spread = (Math.random() - 0.5) * w.spread * 2;
+                        bullets.push(new Bullet(
+                            muzzleX, muzzleY, 
+                            totalAngle + spread, 
+                            w
+                        ));
+                    }
+                } else {
+                    // 其他武器单发
+                    const spread = (Math.random() - 0.5) * w.spread * 2;
+                    bullets.push(new Bullet(
+                        muzzleX, muzzleY, 
+                        totalAngle + spread, 
+                        w
+                    ));
+                }
                 
                 // 发射特效
-                for (let i = 0; i < 8; i++) {
+                const particleCount = w.drawType === 'cannon' ? 15 : 8;
+                for (let i = 0; i < particleCount; i++) {
                     particles.push(new Particle(
-                        bulletX,
-                        bulletY,
+                        muzzleX,
+                        muzzleY,
                         -sin * 2 + (Math.random() - 0.5) * 3,
                         cos * 2 + (Math.random() - 0.5) * 3,
-                        '#00d4ff'
+                        w.bulletColor
                     ));
                 }
                 
                 // 后坐力
-                this.velocityX -= sin * 0.3;
-                this.velocityY += cos * 0.3;
+                this.velocityX -= sin * w.recoil;
+                this.velocityY += cos * w.recoil;
             }
         }
         
         class Bullet {
-            constructor(x, y, angle) {
+            constructor(x, y, angle, weapon) {
                 this.x = x;
                 this.y = y;
                 this.angle = angle;
-                this.speed = 10;
-                this.radius = 3;
-                this.life = 80;
+                this.weapon = weapon;
+                this.speed = weapon.bulletSpeed;
+                this.radius = weapon.bulletRadius;
+                this.life = weapon.bulletLife;
+                this.damage = weapon.damage;
             }
             
             update() {
@@ -488,21 +664,54 @@
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle);
                 
-                // 尾焰
-                ctx.fillStyle = 'rgba(0, 200, 255, 0.4)';
-                ctx.fillRect(-12, -2, 10, 4);
+                const w = this.weapon;
                 
-                // 子弹主体
-                ctx.fillStyle = '#00d4ff';
-                ctx.beginPath();
-                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // 光晕
-                ctx.fillStyle = 'rgba(0, 200, 255, 0.3)';
-                ctx.beginPath();
-                ctx.arc(0, 0, this.radius + 3, 0, Math.PI * 2);
-                ctx.fill();
+                if (w.drawType === 'laser') {
+                    // 激光子弹 - 发光效果
+                    ctx.fillStyle = 'rgba(255, 100, 180, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius + 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = w.bulletColor;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius * 0.5, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (w.drawType === 'cannon') {
+                    // 炮弹 - 大光晕
+                    ctx.fillStyle = 'rgba(255, 100, 50, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius + 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = w.bulletColor;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // 尾焰
+                    ctx.fillStyle = 'rgba(255, 150, 50, 0.6)';
+                    ctx.fillRect(-this.radius - 8, -this.radius/2, 8, this.radius);
+                } else {
+                    // 普通子弹
+                    ctx.fillStyle = 'rgba(0, 200, 255, 0.4)';
+                    ctx.fillRect(-12, -2, 10, 4);
+                    
+                    ctx.fillStyle = w.bulletColor;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = 'rgba(0, 200, 255, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius + 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
                 
                 ctx.restore();
             }
@@ -572,6 +781,44 @@
             }
         }
         
+        function drawWeaponUI() {
+            const startX = canvas.width - 150;
+            const startY = 20;
+            const itemHeight = 35;
+            
+            for (let i = 0; i < mech.weaponList.length; i++) {
+                const w = mech.weaponList[i];
+                const isActive = w === mech.currentWeapon;
+                const y = startY + i * itemHeight;
+                
+                // 背景
+                ctx.fillStyle = isActive ? 'rgba(0, 200, 255, 0.3)' : 'rgba(50, 50, 50, 0.5)';
+                ctx.fillRect(startX, y, 130, 30);
+                
+                // 边框
+                ctx.strokeStyle = isActive ? '#00d4ff' : '#555';
+                ctx.lineWidth = isActive ? 2 : 1;
+                ctx.strokeRect(startX, y, 130, 30);
+                
+                // 武器颜色标识
+                ctx.fillStyle = w.color;
+                ctx.fillRect(startX + 5, y + 8, 14, 14);
+                
+                // 武器名称
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px monospace';
+                ctx.fillText((i + 1) + '. ' + w.name, startX + 24, y + 20);
+            }
+            
+            // 当前武器冷却条
+            if (mech.fireCooldown > 0) {
+                const w = mech.currentWeapon;
+                const cooldownRatio = mech.fireCooldown / w.fireRate;
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                ctx.fillRect(startX, startY + mech.weaponList.length * itemHeight + 5, 130 * cooldownRatio, 5);
+            }
+        }
+        
         function gameLoop() {
             ctx.fillStyle = '#1a1a1a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -601,14 +848,18 @@
                 }
             }
             
+            // 绘制武器UI
+            drawWeaponUI();
+            
             // 显示状态信息
             ctx.fillStyle = '#00d4ff';
             ctx.font = '13px monospace';
             const speed = Math.sqrt(mech.velocityX * mech.velocityX + mech.velocityY * mech.velocityY);
-            ctx.fillText('速度: ' + (speed * 10).toFixed(1) + ' km/h', 10, canvas.height - 80);
-            ctx.fillText('底盘角度: ' + (mech.bodyAngle * 180 / Math.PI % 360).toFixed(1) + '°', 10, canvas.height - 60);
-            ctx.fillText('上半身角度: ' + (mech.upperAngle * 180 / Math.PI).toFixed(1) + '°', 10, canvas.height - 40);
-            ctx.fillText('武器角度: ' + (mech.weaponAngle * 180 / Math.PI).toFixed(1) + '°', 10, canvas.height - 20);
+            ctx.fillText('速度: ' + (speed * 10).toFixed(1) + ' km/h', 10, canvas.height - 100);
+            ctx.fillText('底盘角度: ' + (mech.bodyAngle * 180 / Math.PI % 360).toFixed(1) + '°', 10, canvas.height - 80);
+            ctx.fillText('上半身角度: ' + (mech.upperAngle * 180 / Math.PI).toFixed(1) + '°', 10, canvas.height - 60);
+            ctx.fillText('武器角度: ' + (mech.weaponAngle * 180 / Math.PI).toFixed(1) + '°', 10, canvas.height - 40);
+            ctx.fillText('当前武器: ' + mech.currentWeapon.name, 10, canvas.height - 20);
             
             requestAnimationFrame(gameLoop);
         }
