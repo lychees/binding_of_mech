@@ -105,7 +105,10 @@ window.switchHangarTab = function(tab) {
 function updateHangarUI() {
     document.getElementById('resourceBar').textContent = 
         `金币: ${playerSave.money} | 经验: ${playerSave.exp} | 等级: ${playerSave.level}`;
-    renderUpgradePanel('mech');
+    // 获取当前激活的标签页
+    const activeTab = document.querySelector('.hangar-tab.active');
+    const tab = activeTab ? activeTab.textContent === '机甲升级' ? 'mech' : 'weapon' : 'mech';
+    renderUpgradePanel(tab);
 }
 
 function renderUpgradePanel(tab) {
