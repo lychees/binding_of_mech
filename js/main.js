@@ -471,6 +471,26 @@ function updateBullets() {
                 if (mech.health <= 0) {
                     mech.health = 0;
                     mech.isDead = true;
+                    // 死亡爆炸特效
+                    for (let k = 0; k < 50; k++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = 2 + Math.random() * 6;
+                        particles.push(new Particle(
+                            mech.x, mech.y,
+                            Math.cos(angle) * speed,
+                            Math.sin(angle) * speed,
+                            k % 3 === 0 ? '#ff4444' : k % 3 === 1 ? '#ff8800' : '#ffcc00'
+                        ));
+                    }
+                    // 添加残骸作为障碍物挡子弹
+                    obstacles.push({
+                        x: mech.x - 25,
+                        y: mech.y - 25,
+                        width: 50,
+                        height: 50,
+                        type: 'wreck',
+                        color: '#3a3a3a'
+                    });
                     gameRunning = false;
                     showMissionResult(false);
                     return;
