@@ -1550,8 +1550,8 @@
                 bullets[i].update();
                 bullets[i].draw();
                 
-                // 检测子弹是否击中敌人（检测所有玩家发射的子弹，包括火神炮）
-                if (bullets[i] instanceof Bullet) {
+                // 检测子弹是否击中敌人（只检测玩家发射的子弹，排除敌人发射的VULCAN子弹）
+                if (bullets[i] instanceof Bullet && bullets[i].weapon !== WEAPONS.VULCAN) {
                     for (let j = enemies.length - 1; j >= 0; j--) {
                         const dx = bullets[i].x - enemies[j].x;
                         const dy = bullets[i].y - enemies[j].y;
