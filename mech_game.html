@@ -1049,22 +1049,18 @@
             draw() {
                 if (this.state === 'done') return;
                 
-                const cos = Math.cos(this.angle);
-                const sin = Math.sin(this.angle);
+                // 使用当前机甲角度计算枪口位置（实时更新）
+                const totalAngle = mech.bodyAngle + mech.upperAngle + mech.weaponAngle;
+                const cos = Math.cos(totalAngle);
+                const sin = Math.sin(totalAngle);
                 
                 // 绳索起点始终跟随机甲当前枪口位置
                 const muzzleX = mech.x + sin * mech.currentWeapon.barrelLength - cameraX;
                 const muzzleY = mech.y - cos * mech.currentWeapon.barrelLength - cameraY;
                 
-                // 计算当前钩爪位置
-                let currentHookX, currentHookY;
-                if (this.state === 'retracting') {
-                    currentHookX = this.startX + sin * this.length - cameraX;
-                    currentHookY = this.startY - cos * this.length - cameraY;
-                } else {
-                    currentHookX = this.hookX - cameraX;
-                    currentHookY = this.hookY - cameraY;
-                }
+                // 计算当前钩爪位置（固定在世界坐标）
+                const currentHookX = this.hookX - cameraX;
+                const currentHookY = this.hookY - cameraY;
                 
                 // 绳索
                 ctx.strokeStyle = '#888';
