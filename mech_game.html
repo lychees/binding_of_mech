@@ -706,6 +706,8 @@
                         const spread = (Math.random() - 0.5) * w.spread * 2;
                         bullets.push(new Bullet(muzzleX, muzzleY, totalAngle + spread, w));
                     }
+                } else if (w.drawType === 'laser') {
+                    bullets.push(new LaserBeam(muzzleX, muzzleY, totalAngle, w));
                 } else {
                     const spread = (Math.random() - 0.5) * w.spread * 2;
                     bullets.push(new Bullet(muzzleX, muzzleY, totalAngle + spread, w));
@@ -726,8 +728,68 @@
             }
         }
         
-        class Bullet {
+        // 激光束类
+        class LaserBeam {
             constructor(x, y, angle, weapon) {
+                this.x = x;
+                this.y = y;
+                this.angle = angle;
+                this.weapon = weapon;
+                this.life = weapon.bulletLife;
+                this.maxLife = weapon.bulletLife;
+                this.damage = weapon.damage;
+                this.length = 0;
+                this.maxLength = 200;
+                this.width = weapon.bulletRadius * 2;
+            }
+            
+            update() {
+                this.life--;
+                if (this.length < this.maxLength) {
+                    this.length += this.weapon.bulletSpeed * 3;
+                }
+            }
+            
+            draw() {
+                const opacity = this.life / this.maxLife;
+                const cos = Math.cos(this.angle);
+                const sin = Math.sin(this.angle);
+                
+                // 光束外发光
+                ctx.strokeStyle = 'rgba(255, 100, 180, ' + (opacity * 0.3) + ')';
+                ctx.lineWidth = this.width + 6;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x + sin * this.length, this.y - cos * this.length);
+                ctx.stroke();
+                
+                // 光束主体
+                ctx.strokeStyle = 'rgba(255, 68, 170, ' + (opacity * 0.6) + ')';
+                ctx.lineWidth = this.width + 2;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x + sin * this.length, this.y - cos * this.length);
+                ctx.stroke();
+                
+                // 光束核心
+                ctx.strokeStyle = 'rgba(255, 200, 230, ' + opacity + ')';
+                ctx.lineWidth = this.width * 0.5;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x + sin * this.length, this.y - cos * this.length);
+                ctx.stroke();
+                
+                // 端点发光
+                ctx.fillStyle = 'rgba(255, 255, 255, ' + opacity + ')';
+                ctx.beginPath();
+                ctx.arc(this.x + sin * this.length, this.y - cos * this.length, this.width, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        // 普通子弹类
+        class Bullet {
                 this.x = x;
                 this.y = y;
                 this.angle = angle;
@@ -751,22 +813,7 @@
                 
                 const w = this.weapon;
                 
-                if (w.drawType === 'laser') {
-                    ctx.fillStyle = 'rgba(255, 100, 180, 0.3)';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius + 4, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    ctx.fillStyle = w.bulletColor;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    ctx.fillStyle = '#ffffff';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius * 0.5, 0, Math.PI * 2);
-                    ctx.fill();
-                } else if (w.drawType === 'cannon') {
+                if (w.drawType === 'cannon') {
                     ctx.fillStyle = 'rgba(255, 100, 50, 0.4)';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius + 6, 0, Math.PI * 2);
@@ -959,9 +1006,11 @@
                 bullets[i].update();
                 bullets[i].draw();
                 
+                // 激光束不需要边界检测，用寿命控制
                 if (bullets[i].life <= 0 || 
-                    bullets[i].x < 0 || bullets[i].x > canvas.width ||
-                    bullets[i].y < 0 || bullets[i].y > canvas.height) {
+                    (bullets[i] instanceof Bullet && 
+                     (bullets[i].x < 0 || bullets[i].x > canvas.width ||
+                      bullets[i].y < 0 || bullets[i].y > canvas.height))) {
                     bullets.splice(i, 1);
                 }
             }
