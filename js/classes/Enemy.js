@@ -2,6 +2,7 @@ import { bullets, particles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, obstac
 import { WEAPONS } from '../weapons.js';
 import { ENEMY_TEMPLATES } from '../enemies.js';
 import Bullet from './Bullet.js';
+import Particle from './Particle.js';
 
 // mech 由主模块在创建敌人后设置
 let mechRef = null;
