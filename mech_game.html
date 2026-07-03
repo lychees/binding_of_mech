@@ -52,8 +52,8 @@
         <p><span class="key">A</span><span class="key">D</span> - 左右侧移（横向平移）</p>
         <p><span class="key">Q</span><span class="key">E</span> - 机甲左右转向</p>
         <p><span class="key">←</span><span class="key">→</span> - 上半身/武器左右转向</p>
-        <p><span class="key">空格</span> - 发射武器</p>
-        <p><span class="key">1</span><span class="key">2</span><span class="key">3</span><span class="key">4</span> - 切换武器</p>
+        <p><span class="key">空格</span> - 发射武器/近战攻击</p>
+        <p><span class="key">1</span><span class="key">2</span><span class="key">3</span><span class="key">4</span><span class="key">5</span> - 切换武器</p>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -68,24 +68,29 @@
         const bullets = [];
         const particles = [];
         const footprints = [];
+        const meleeAttacks = [];
         
         // 武器类型定义
         const WEAPONS = {
-            RIFLE: {
-                name: '突击步枪',
-                color: '#7a9aba',
-                muzzleColor: '#3a5a7a',
-                bulletColor: '#00d4ff',
-                bulletSpeed: 10,
-                bulletRadius: 3,
-                fireRate: 8,
-                damage: 10,
-                recoil: 0.3,
-                spread: 0.05,
-                bulletLife: 80,
-                barrelLength: 30,
-                barrelWidth: 6,
-                drawType: 'rifle'
+            VULCAN: {
+                name: '火神炮',
+                color: '#7a3a2a',
+                muzzleColor: '#5a2a1a',
+                bulletColor: '#ff6622',
+                bulletSpeed: 12,
+                bulletRadius: 2.5,
+                fireRate: 3,
+                damage: 6,
+                recoil: 0.15,
+                spread: 0.08,
+                bulletLife: 60,
+                barrelLength: 28,
+                barrelWidth: 8,
+                drawType: 'vulcan',
+                heatPerShot: 8,
+                heatDecay: 0.5,
+                overheatThreshold: 100,
+                overheatCooldown: 120
             },
             SHOTGUN: {
                 name: '霰弹枪',
@@ -135,6 +140,25 @@
                 barrelLength: 28,
                 barrelWidth: 8,
                 drawType: 'laser'
+            },
+            BLADE: {
+                name: '光束军刀',
+                color: '#00ff88',
+                muzzleColor: '#00cc66',
+                bulletColor: '#00ff88',
+                bulletSpeed: 0,
+                bulletRadius: 0,
+                fireRate: 20,
+                damage: 35,
+                recoil: 0,
+                spread: 0,
+                bulletLife: 0,
+                barrelLength: 30,
+                barrelWidth: 4,
+                drawType: 'blade',
+                swingRange: Math.PI * 0.6,
+                swingSpeed: 0.3,
+                swingDuration: 15
             }
         };
         
@@ -143,38 +167,31 @@
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
-                this.bodyAngle = 0;      // 下半身/底盘角度（初始面朝上）
-                this.upperAngle = 0;     // 上半身角度（相对bodyAngle）
-                this.weaponAngle = 0;    // 武器角度（相对upperAngle）
+                this.bodyAngle = 0;
+                this.upperAngle = 0;
+                this.weaponAngle = 0;
                 
-                // 移动速度
                 this.velocityX = 0;
                 this.velocityY = 0;
                 this.maxSpeed = 2.5;
                 this.acceleration = 0.12;
                 this.deceleration = 0.04;
                 
-                // 转向速度
                 this.turnVelocity = 0;
                 this.maxTurnSpeed = 0.05;
-                this.turnAcceleration = 0.02;
                 this.turnDeceleration = 0.03;
                 
-                // 上半身转向
                 this.upperTurnVelocity = 0;
                 this.maxUpperTurnSpeed = 0.04;
                 this.upperTurnDeceleration = 0.025;
                 
-                // 武器转向
                 this.weaponTurnVelocity = 0;
                 this.maxWeaponTurnSpeed = 0.035;
                 this.weaponTurnDeceleration = 0.02;
                 
-                // 行走动画
                 this.walkCycle = 0;
                 this.walkSpeed = 0.15;
                 
-                // 尺寸
                 this.legWidth = 8;
                 this.legLength = 35;
                 this.bodyWidth = 30;
@@ -182,72 +199,101 @@
                 this.upperWidth = 25;
                 this.upperHeight = 20;
                 
-                // 喷气特效
                 this.jetParticles = [];
                 
-                // 武器系统
-                this.currentWeapon = WEAPONS.RIFLE;
+                this.currentWeapon = WEAPONS.VULCAN;
                 this.fireCooldown = 0;
-                this.weaponKeys = ['1', '2', '3', '4'];
-                this.weaponList = [WEAPONS.RIFLE, WEAPONS.SHOTGUN, WEAPONS.CANNON, WEAPONS.LASER];
+                this.weaponKeys = ['1', '2', '3', '4', '5'];
+                this.weaponList = [WEAPONS.VULCAN, WEAPONS.SHOTGUN, WEAPONS.CANNON, WEAPONS.LASER, WEAPONS.BLADE];
+                
+                // 火神炮温度系统
+                this.heatLevel = 0;
+                this.isOverheated = false;
+                this.overheatTimer = 0;
+                
+                // 近战攻击状态
+                this.isSwinging = false;
+                this.swingProgress = 0;
+                this.swingDirection = 1;
             }
             
             update() {
-                // 处理武器切换
+                // 武器切换
                 for (let i = 0; i < this.weaponKeys.length; i++) {
                     if (keys[this.weaponKeys[i]]) {
                         this.currentWeapon = this.weaponList[i];
-                        keys[this.weaponKeys[i]] = false; // 防止连续切换
+                        keys[this.weaponKeys[i]] = false;
+                        this.isSwinging = false;
                         break;
                     }
                 }
                 
-                // 处理射击冷却
+                // 射击冷却
                 if (this.fireCooldown > 0) {
                     this.fireCooldown--;
                 }
                 
-                // 处理前进后退
+                // 火神炮温度管理
+                if (this.currentWeapon.drawType === 'vulcan') {
+                    if (this.isOverheated) {
+                        this.overheatTimer--;
+                        this.heatLevel = (this.overheatTimer / this.currentWeapon.overheatCooldown) * this.currentWeapon.overheatThreshold;
+                        if (this.overheatTimer <= 0) {
+                            this.isOverheated = false;
+                            this.heatLevel = 0;
+                        }
+                    } else {
+                        // 不射击时温度下降
+                        if (!keys[' ']) {
+                            this.heatLevel = Math.max(0, this.heatLevel - this.currentWeapon.heatDecay);
+                        }
+                    }
+                }
+                
+                // 近战攻击动画
+                if (this.isSwinging) {
+                    this.swingProgress += this.swingDirection * this.currentWeapon.swingSpeed;
+                    if (this.swingProgress >= this.currentWeapon.swingRange / 2) {
+                        this.swingDirection = -1;
+                    }
+                    if (this.swingProgress <= -this.currentWeapon.swingRange / 2) {
+                        this.isSwinging = false;
+                        this.swingProgress = 0;
+                        this.swingDirection = 1;
+                    }
+                }
+                
+                // 移动
                 let moveForward = 0;
                 if (keys['w'] || keys['W']) moveForward = 1;
                 else if (keys['s'] || keys['S']) moveForward = -1;
                 
-                // 处理侧移
                 let moveSide = 0;
                 if (keys['a'] || keys['A']) moveSide = -1;
                 else if (keys['d'] || keys['D']) moveSide = 1;
                 
-                // 计算目标速度向量
                 const cos = Math.cos(this.bodyAngle);
                 const sin = Math.sin(this.bodyAngle);
                 
-                // 前进后退速度（bodyAngle=0时面朝上，即Y轴负方向）
-                // 前进方向向量: (-sin, -cos)，因为sin(0)=0, cos(0)=1，所以是(0, -1)朝上
-                // 侧移方向向量: (cos, -sin)，面朝上时侧移是(1, 0)即向右
                 const targetVX = (sin) * moveForward * this.maxSpeed + cos * moveSide * this.maxSpeed * 0.7;
                 const targetVY = (-cos) * moveForward * this.maxSpeed + sin * moveSide * this.maxSpeed * 0.7;
                 
-                // 惯性加速/减速
                 if (moveForward !== 0 || moveSide !== 0) {
                     this.velocityX += (targetVX - this.velocityX) * this.acceleration;
                     this.velocityY += (targetVY - this.velocityY) * this.acceleration;
                 } else {
-                    // 自然减速（惯性滑行）
                     this.velocityX *= (1 - this.deceleration);
                     this.velocityY *= (1 - this.deceleration);
                     if (Math.abs(this.velocityX) < 0.01) this.velocityX = 0;
                     if (Math.abs(this.velocityY) < 0.01) this.velocityY = 0;
                 }
                 
-                // 应用移动
                 this.x += this.velocityX;
                 this.y += this.velocityY;
-                
-                // 边界限制
                 this.x = Math.max(30, Math.min(canvas.width - 30, this.x));
                 this.y = Math.max(30, Math.min(canvas.height - 30, this.y));
                 
-                // 处理底盘转向（Q/E键）
+                // 转向
                 let targetTurn = 0;
                 if (keys['e'] || keys['E']) targetTurn = this.maxTurnSpeed;
                 else if (keys['q'] || keys['Q']) targetTurn = -this.maxTurnSpeed;
@@ -260,7 +306,6 @@
                 }
                 this.bodyAngle += this.turnVelocity;
                 
-                // 处理上半身转向（左右箭头）
                 let targetUpperTurn = 0;
                 if (keys['ArrowLeft']) targetUpperTurn = -this.maxUpperTurnSpeed;
                 else if (keys['ArrowRight']) targetUpperTurn = this.maxUpperTurnSpeed;
@@ -273,11 +318,9 @@
                 }
                 this.upperAngle += this.upperTurnVelocity;
                 
-                // 限制上半身转向角度（相对底盘）
                 const maxUpperAngle = Math.PI * 0.8;
                 this.upperAngle = Math.max(-maxUpperAngle, Math.min(maxUpperAngle, this.upperAngle));
                 
-                // 处理武器转向（Shift+左右箭头）
                 let targetWeaponTurn = 0;
                 if (keys['Shift'] && keys['ArrowLeft']) targetWeaponTurn = -this.maxWeaponTurnSpeed;
                 else if (keys['Shift'] && keys['ArrowRight']) targetWeaponTurn = this.maxWeaponTurnSpeed;
@@ -296,12 +339,10 @@
                     this.walkCycle += this.walkSpeed * (speed / this.maxSpeed);
                 }
                 
-                // 添加脚印
                 if (speed > 0.5 && Math.sin(this.walkCycle) > 0.9) {
                     this.addFootprint();
                 }
                 
-                // 更新脚印
                 for (let i = footprints.length - 1; i >= 0; i--) {
                     footprints[i].opacity -= 0.005;
                     if (footprints[i].opacity <= 0) {
@@ -309,7 +350,6 @@
                     }
                 }
                 
-                // 喷气特效
                 if (speed > 1 || Math.abs(this.turnVelocity) > 0.01) {
                     this.addJetParticle();
                 }
@@ -358,7 +398,6 @@
             }
             
             draw() {
-                // 绘制脚印
                 for (let i = 0; i < footprints.length; i++) {
                     const fp = footprints[i];
                     ctx.save();
@@ -369,7 +408,6 @@
                     ctx.restore();
                 }
                 
-                // 绘制喷气粒子
                 for (let i = 0; i < this.jetParticles.length; i++) {
                     const p = this.jetParticles[i];
                     const opacity = p.life / p.maxLife;
@@ -384,43 +422,33 @@
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 
-                // 计算腿部动画
                 const leftLegOffset = Math.sin(this.walkCycle) * 8;
                 const rightLegOffset = Math.sin(this.walkCycle + Math.PI) * 8;
                 const leftKnee = Math.sin(this.walkCycle + Math.PI * 0.5) * 5;
                 const rightKnee = Math.sin(this.walkCycle + Math.PI * 1.5) * 5;
                 
-                // 绘制阴影
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
                 ctx.beginPath();
                 ctx.ellipse(0, 25, 25, 10, 0, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // 绘制左腿
                 ctx.save();
                 ctx.rotate(this.bodyAngle);
                 this.drawLeg(-12, leftLegOffset, leftKnee, true);
                 ctx.restore();
                 
-                // 绘制右腿
                 ctx.save();
                 ctx.rotate(this.bodyAngle);
                 this.drawLeg(12, rightLegOffset, rightKnee, false);
                 ctx.restore();
                 
-                // 绘制下半身（底盘）
                 ctx.save();
                 ctx.rotate(this.bodyAngle);
                 
-                // 底盘主体
                 ctx.fillStyle = '#4a5568';
                 ctx.fillRect(-this.bodyWidth/2, -this.bodyHeight/2, this.bodyWidth, this.bodyHeight);
-                
-                // 底盘细节
                 ctx.fillStyle = '#2d3748';
                 ctx.fillRect(-this.bodyWidth/2 + 3, -this.bodyHeight/2 + 3, this.bodyWidth - 6, this.bodyHeight - 6);
-                
-                // 底盘装甲纹理
                 ctx.strokeStyle = '#5a6578';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -431,41 +459,33 @@
                 ctx.moveTo(-10, 8);
                 ctx.lineTo(10, 8);
                 ctx.stroke();
-                
                 ctx.restore();
                 
-                // 绘制上半身（相对底盘旋转）
                 ctx.save();
                 ctx.rotate(this.bodyAngle + this.upperAngle);
                 
-                // 腰部连接
                 ctx.fillStyle = '#5a6a7d';
                 ctx.beginPath();
                 ctx.arc(0, 0, 8, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // 上半身主体
                 ctx.fillStyle = '#5a7a9a';
                 ctx.fillRect(-this.upperWidth/2, -this.upperHeight/2 - 5, this.upperWidth, this.upperHeight);
                 
-                // 驾驶舱
                 ctx.fillStyle = '#7a9aba';
                 ctx.beginPath();
                 ctx.arc(0, -5, 8, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // 驾驶舱玻璃
                 ctx.fillStyle = '#a0d0f0';
                 ctx.beginPath();
                 ctx.arc(0, -5, 5, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // 肩部装甲
                 ctx.fillStyle = '#4a6a8a';
                 ctx.fillRect(-this.upperWidth/2 - 3, -this.upperHeight/2 - 3, 6, 12);
                 ctx.fillRect(this.upperWidth/2 - 3, -this.upperHeight/2 - 3, 6, 12);
                 
-                // 绘制武器（相对上半身旋转）
                 ctx.save();
                 ctx.rotate(this.weaponAngle);
                 this.drawWeapon();
@@ -478,35 +498,38 @@
             drawWeapon() {
                 const w = this.currentWeapon;
                 
-                // 武器底座
                 ctx.fillStyle = w.color;
                 ctx.beginPath();
                 ctx.arc(0, -5, 6, 0, Math.PI * 2);
                 ctx.fill();
                 
                 switch (w.drawType) {
-                    case 'rifle':
-                        // 突击步枪 - 细长枪管
+                    case 'vulcan':
                         ctx.fillStyle = w.color;
                         ctx.fillRect(-w.barrelWidth/2, -w.barrelLength, w.barrelWidth, w.barrelLength);
                         ctx.fillStyle = w.muzzleColor;
                         ctx.fillRect(-w.barrelWidth/2 - 1, -w.barrelLength, w.barrelWidth + 2, 4);
-                        ctx.fillStyle = '#9abaca';
+                        ctx.fillStyle = '#aa5a3a';
                         ctx.fillRect(-1, -w.barrelLength + 2, 2, w.barrelLength - 4);
-                        // 弹匣
-                        ctx.fillStyle = '#4a5a6a';
-                        ctx.fillRect(-2, -15, 4, 10);
+                        // 散热片
+                        ctx.fillStyle = '#8a4a2a';
+                        for (let i = 0; i < 4; i++) {
+                            ctx.fillRect(-w.barrelWidth/2 - 2, -w.barrelLength + 5 + i * 5, w.barrelWidth + 4, 2);
+                        }
+                        // 温度指示
+                        if (this.heatLevel > 0) {
+                            const heatRatio = this.heatLevel / w.overheatThreshold;
+                            ctx.fillStyle = 'rgba(255, ' + (255 - heatRatio * 255) + ', 0, 0.5)';
+                            ctx.fillRect(-w.barrelWidth/2 - 3, -w.barrelLength, 2, w.barrelLength * heatRatio);
+                        }
                         break;
                         
                     case 'shotgun':
-                        // 霰弹枪 - 粗短双管
                         ctx.fillStyle = w.color;
                         ctx.fillRect(-w.barrelWidth/2, -w.barrelLength, w.barrelWidth, w.barrelLength);
-                        // 双管效果
                         ctx.fillStyle = w.muzzleColor;
                         ctx.fillRect(-4, -w.barrelLength, 3, w.barrelLength - 2);
                         ctx.fillRect(1, -w.barrelLength, 3, w.barrelLength - 2);
-                        // 散热孔
                         ctx.fillStyle = '#6a5a4a';
                         for (let i = 0; i < 3; i++) {
                             ctx.fillRect(-6, -w.barrelLength + 5 + i * 6, 12, 2);
@@ -514,50 +537,91 @@
                         break;
                         
                     case 'cannon':
-                        // 加农炮 - 粗长炮管，带支架
                         ctx.fillStyle = w.color;
                         ctx.fillRect(-w.barrelWidth/2, -w.barrelLength, w.barrelWidth, w.barrelLength);
-                        // 炮口制退器
                         ctx.fillStyle = w.muzzleColor;
                         ctx.fillRect(-w.barrelWidth/2 - 2, -w.barrelLength - 3, w.barrelWidth + 4, 6);
-                        // 支架
                         ctx.fillStyle = '#5a6a5a';
                         ctx.fillRect(-3, -10, 6, 8);
                         ctx.fillRect(-8, -8, 16, 3);
-                        // 高光
                         ctx.fillStyle = '#8a9a8a';
                         ctx.fillRect(-2, -w.barrelLength + 3, 4, w.barrelLength - 6);
                         break;
                         
                     case 'laser':
-                        // 激光炮 - 科技风格，带能量环
                         ctx.fillStyle = w.color;
                         ctx.fillRect(-w.barrelWidth/2, -w.barrelLength, w.barrelWidth, w.barrelLength);
-                        // 能量核心
                         ctx.fillStyle = '#ff88cc';
                         ctx.beginPath();
                         ctx.arc(0, -w.barrelLength/2, 3, 0, Math.PI * 2);
                         ctx.fill();
-                        // 能量环
                         ctx.strokeStyle = '#ff44aa';
                         ctx.lineWidth = 2;
                         ctx.beginPath();
                         ctx.arc(0, -w.barrelLength/2, 5, 0, Math.PI * 2);
                         ctx.stroke();
-                        // 发光效果
                         ctx.fillStyle = 'rgba(255, 100, 180, 0.3)';
                         ctx.beginPath();
                         ctx.arc(0, -w.barrelLength/2, 8, 0, Math.PI * 2);
                         ctx.fill();
-                        // 炮口
                         ctx.fillStyle = '#ff66aa';
                         ctx.fillRect(-w.barrelWidth/2 - 1, -w.barrelLength - 2, w.barrelWidth + 2, 3);
+                        break;
+                        
+                    case 'blade':
+                        // 光束军刀
+                        const bladeLength = w.barrelLength;
+                        const swingOffset = this.isSwinging ? this.swingProgress : 0;
+                        
+                        ctx.save();
+                        ctx.rotate(swingOffset);
+                        
+                        // 刀柄
+                        ctx.fillStyle = '#4a5a6a';
+                        ctx.fillRect(-3, -8, 6, 10);
+                        ctx.fillStyle = '#6a7a8a';
+                        ctx.fillRect(-2, -6, 4, 6);
+                        
+                        // 光束刀刃
+                        ctx.fillStyle = 'rgba(0, 255, 136, 0.3)';
+                        ctx.beginPath();
+                        ctx.moveTo(-6, -8);
+                        ctx.lineTo(0, -8 - bladeLength);
+                        ctx.lineTo(6, -8);
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        ctx.fillStyle = 'rgba(0, 255, 200, 0.6)';
+                        ctx.beginPath();
+                        ctx.moveTo(-3, -8);
+                        ctx.lineTo(0, -8 - bladeLength * 0.9);
+                        ctx.lineTo(3, -8);
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.moveTo(-1, -8);
+                        ctx.lineTo(0, -8 - bladeLength * 0.8);
+                        ctx.lineTo(1, -8);
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        // 挥舞轨迹
+                        if (this.isSwinging) {
+                            ctx.fillStyle = 'rgba(0, 255, 136, 0.15)';
+                            ctx.beginPath();
+                            ctx.arc(0, -8, bladeLength, -this.currentWeapon.swingRange/2 - Math.PI/2, this.currentWeapon.swingRange/2 - Math.PI/2);
+                            ctx.closePath();
+                            ctx.fill();
+                        }
+                        
+                        ctx.restore();
                         break;
                 }
             }
             
             drawLeg(xOffset, footOffset, kneeOffset, isLeft) {
-                // 大腿
                 ctx.strokeStyle = '#4a5568';
                 ctx.lineWidth = this.legWidth;
                 ctx.lineCap = 'round';
@@ -566,13 +630,11 @@
                 ctx.lineTo(xOffset + kneeOffset * 0.3, this.legLength * 0.5);
                 ctx.stroke();
                 
-                // 小腿
                 ctx.beginPath();
                 ctx.moveTo(xOffset + kneeOffset * 0.3, this.legLength * 0.5);
                 ctx.lineTo(xOffset + footOffset * 0.2, this.legLength + footOffset * 0.1);
                 ctx.stroke();
                 
-                // 关节
                 ctx.fillStyle = '#5a6a7d';
                 ctx.beginPath();
                 ctx.arc(xOffset, 0, 5, 0, Math.PI * 2);
@@ -581,7 +643,6 @@
                 ctx.arc(xOffset + kneeOffset * 0.3, this.legLength * 0.5, 4, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // 脚
                 ctx.fillStyle = '#3a4558';
                 ctx.save();
                 ctx.translate(xOffset + footOffset * 0.2, this.legLength + footOffset * 0.1);
@@ -593,6 +654,44 @@
                 if (this.fireCooldown > 0) return;
                 
                 const w = this.currentWeapon;
+                
+                // 火神炮过热检查
+                if (w.drawType === 'vulcan') {
+                    if (this.isOverheated) return;
+                    this.heatLevel += w.heatPerShot;
+                    if (this.heatLevel >= w.overheatThreshold) {
+                        this.isOverheated = true;
+                        this.overheatTimer = w.overheatCooldown;
+                        this.heatLevel = w.overheatThreshold;
+                    }
+                }
+                
+                // 近战攻击
+                if (w.drawType === 'blade') {
+                    if (!this.isSwinging) {
+                        this.isSwinging = true;
+                        this.swingProgress = -w.swingRange / 2;
+                        this.swingDirection = 1;
+                        this.fireCooldown = w.fireRate;
+                        
+                        // 近战特效
+                        const totalAngle = this.bodyAngle + this.upperAngle + this.weaponAngle;
+                        const cos = Math.cos(totalAngle);
+                        const sin = Math.sin(totalAngle);
+                        
+                        for (let i = 0; i < 10; i++) {
+                            particles.push(new Particle(
+                                this.x + sin * 20 + (Math.random() - 0.5) * 30,
+                                this.y - cos * 20 + (Math.random() - 0.5) * 30,
+                                (Math.random() - 0.5) * 4,
+                                (Math.random() - 0.5) * 4,
+                                '#00ff88'
+                            ));
+                        }
+                    }
+                    return;
+                }
+                
                 this.fireCooldown = w.fireRate;
                 
                 const totalAngle = this.bodyAngle + this.upperAngle + this.weaponAngle;
@@ -602,40 +701,26 @@
                 const muzzleX = this.x + sin * w.barrelLength;
                 const muzzleY = this.y - cos * w.barrelLength;
                 
-                // 根据武器类型发射不同的子弹
                 if (w.drawType === 'shotgun') {
-                    // 霰弹枪发射多个弹丸
                     for (let i = 0; i < w.pelletCount; i++) {
                         const spread = (Math.random() - 0.5) * w.spread * 2;
-                        bullets.push(new Bullet(
-                            muzzleX, muzzleY, 
-                            totalAngle + spread, 
-                            w
-                        ));
+                        bullets.push(new Bullet(muzzleX, muzzleY, totalAngle + spread, w));
                     }
                 } else {
-                    // 其他武器单发
                     const spread = (Math.random() - 0.5) * w.spread * 2;
-                    bullets.push(new Bullet(
-                        muzzleX, muzzleY, 
-                        totalAngle + spread, 
-                        w
-                    ));
+                    bullets.push(new Bullet(muzzleX, muzzleY, totalAngle + spread, w));
                 }
                 
-                // 发射特效
                 const particleCount = w.drawType === 'cannon' ? 15 : 8;
                 for (let i = 0; i < particleCount; i++) {
                     particles.push(new Particle(
-                        muzzleX,
-                        muzzleY,
+                        muzzleX, muzzleY,
                         -sin * 2 + (Math.random() - 0.5) * 3,
                         cos * 2 + (Math.random() - 0.5) * 3,
                         w.bulletColor
                     ));
                 }
                 
-                // 后坐力
                 this.velocityX -= sin * w.recoil;
                 this.velocityY += cos * w.recoil;
             }
@@ -667,7 +752,6 @@
                 const w = this.weapon;
                 
                 if (w.drawType === 'laser') {
-                    // 激光子弹 - 发光效果
                     ctx.fillStyle = 'rgba(255, 100, 180, 0.3)';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius + 4, 0, Math.PI * 2);
@@ -683,7 +767,6 @@
                     ctx.arc(0, 0, this.radius * 0.5, 0, Math.PI * 2);
                     ctx.fill();
                 } else if (w.drawType === 'cannon') {
-                    // 炮弹 - 大光晕
                     ctx.fillStyle = 'rgba(255, 100, 50, 0.4)';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius + 6, 0, Math.PI * 2);
@@ -694,11 +777,22 @@
                     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                     ctx.fill();
                     
-                    // 尾焰
                     ctx.fillStyle = 'rgba(255, 150, 50, 0.6)';
                     ctx.fillRect(-this.radius - 8, -this.radius/2, 8, this.radius);
+                } else if (w.drawType === 'vulcan') {
+                    ctx.fillStyle = 'rgba(255, 100, 30, 0.4)';
+                    ctx.fillRect(-8, -1, 6, 2);
+                    
+                    ctx.fillStyle = w.bulletColor;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = 'rgba(255, 200, 100, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius + 2, 0, Math.PI * 2);
+                    ctx.fill();
                 } else {
-                    // 普通子弹
                     ctx.fillStyle = 'rgba(0, 200, 255, 0.4)';
                     ctx.fillRect(-12, -2, 10, 4);
                     
@@ -791,31 +885,64 @@
                 const isActive = w === mech.currentWeapon;
                 const y = startY + i * itemHeight;
                 
-                // 背景
                 ctx.fillStyle = isActive ? 'rgba(0, 200, 255, 0.3)' : 'rgba(50, 50, 50, 0.5)';
                 ctx.fillRect(startX, y, 130, 30);
                 
-                // 边框
                 ctx.strokeStyle = isActive ? '#00d4ff' : '#555';
                 ctx.lineWidth = isActive ? 2 : 1;
                 ctx.strokeRect(startX, y, 130, 30);
                 
-                // 武器颜色标识
                 ctx.fillStyle = w.color;
                 ctx.fillRect(startX + 5, y + 8, 14, 14);
                 
-                // 武器名称
                 ctx.fillStyle = '#fff';
                 ctx.font = '12px monospace';
                 ctx.fillText((i + 1) + '. ' + w.name, startX + 24, y + 20);
             }
             
-            // 当前武器冷却条
-            if (mech.fireCooldown > 0) {
+            // 火神炮温度槽
+            if (mech.currentWeapon.drawType === 'vulcan') {
+                const heatY = startY + mech.weaponList.length * itemHeight + 5;
+                const heatRatio = mech.heatLevel / mech.currentWeapon.overheatThreshold;
+                
+                // 背景
+                ctx.fillStyle = 'rgba(50, 50, 50, 0.5)';
+                ctx.fillRect(startX, heatY, 130, 8);
+                
+                // 温度条
+                let heatColor;
+                if (mech.isOverheated) {
+                    heatColor = 'rgba(255, 0, 0, 0.8)';
+                } else if (heatRatio > 0.7) {
+                    heatColor = 'rgba(255, 100, 0, 0.8)';
+                } else if (heatRatio > 0.4) {
+                    heatColor = 'rgba(255, 200, 0, 0.8)';
+                } else {
+                    heatColor = 'rgba(0, 200, 255, 0.8)';
+                }
+                ctx.fillStyle = heatColor;
+                ctx.fillRect(startX, heatY, 130 * heatRatio, 8);
+                
+                // 边框
+                ctx.strokeStyle = '#666';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(startX, heatY, 130, 8);
+                
+                // 过热警告
+                if (mech.isOverheated) {
+                    ctx.fillStyle = '#ff0000';
+                    ctx.font = 'bold 11px monospace';
+                    ctx.fillText('过热!', startX + 45, heatY + 18);
+                }
+            }
+            
+            // 普通冷却条
+            else if (mech.fireCooldown > 0) {
                 const w = mech.currentWeapon;
                 const cooldownRatio = mech.fireCooldown / w.fireRate;
+                const cdY = startY + mech.weaponList.length * itemHeight + 5;
                 ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-                ctx.fillRect(startX, startY + mech.weaponList.length * itemHeight + 5, 130 * cooldownRatio, 5);
+                ctx.fillRect(startX, cdY, 130 * cooldownRatio, 5);
             }
         }
         
@@ -848,10 +975,8 @@
                 }
             }
             
-            // 绘制武器UI
             drawWeaponUI();
             
-            // 显示状态信息
             ctx.fillStyle = '#00d4ff';
             ctx.font = '13px monospace';
             const speed = Math.sqrt(mech.velocityX * mech.velocityX + mech.velocityY * mech.velocityY);
