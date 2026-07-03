@@ -54,6 +54,7 @@
         <p><span class="key">←</span><span class="key">→</span> - 上半身/武器左右转向</p>
         <p><span class="key">空格</span> - 发射武器/近战攻击</p>
         <p><span class="key">1</span><span class="key">2</span><span class="key">3</span><span class="key">4</span><span class="key">5</span> - 切换武器</p>
+        <p><span class="key">F</span> - 发射钩爪</p>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -69,6 +70,7 @@
         const particles = [];
         const footprints = [];
         const meleeAttacks = [];
+        const hooks = [];
         
         // 武器类型定义
         const WEAPONS = {
@@ -726,6 +728,22 @@
                 this.velocityX -= sin * w.recoil;
                 this.velocityY += cos * w.recoil;
             }
+            
+            fireHook() {
+                // 检查是否已有钩爪
+                for (let i = 0; i < hooks.length; i++) {
+                    if (hooks[i].state !== 'done') return;
+                }
+                
+                const totalAngle = this.bodyAngle + this.upperAngle + this.weaponAngle;
+                const cos = Math.cos(totalAngle);
+                const sin = Math.sin(totalAngle);
+                
+                const muzzleX = this.x + sin * this.currentWeapon.barrelLength;
+                const muzzleY = this.y - cos * this.currentWeapon.barrelLength;
+                
+                hooks.push(new Hook(muzzleX, muzzleY, totalAngle));
+            }
         }
         
         // 激光束类
@@ -785,6 +803,134 @@
                 ctx.beginPath();
                 ctx.arc(this.x + sin * this.length, this.y - cos * this.length, this.width, 0, Math.PI * 2);
                 ctx.fill();
+            }
+        }
+        
+        // 钩爪类
+        class Hook {
+            constructor(x, y, angle) {
+                this.x = x;
+                this.y = y;
+                this.startX = x;
+                this.startY = y;
+                this.angle = angle;
+                this.speed = 15;
+                this.maxLength = 300;
+                this.length = 0;
+                this.state = 'flying'; // flying, hooked, retracting
+                this.life = 120;
+                this.hookX = x;
+                this.hookY = y;
+            }
+            
+            update(mech) {
+                const cos = Math.cos(this.angle);
+                const sin = Math.sin(this.angle);
+                
+                if (this.state === 'flying') {
+                    this.length += this.speed;
+                    this.hookX = this.startX + sin * this.length;
+                    this.hookY = this.startY - cos * this.length;
+                    
+                    // 边界检测
+                    if (this.hookX < 0 || this.hookX > canvas.width ||
+                        this.hookY < 0 || this.hookY > canvas.height ||
+                        this.length >= this.maxLength) {
+                        this.state = 'retracting';
+                    }
+                } else if (this.state === 'hooked') {
+                    // 拉拽机甲向钩爪点
+                    const dx = this.hookX - mech.x;
+                    const dy = this.hookY - mech.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist > 10) {
+                        const pullSpeed = 8;
+                        mech.velocityX += (dx / dist) * pullSpeed * 0.3;
+                        mech.velocityY += (dy / dist) * pullSpeed * 0.3;
+                    } else {
+                        this.state = 'retracting';
+                    }
+                    
+                    this.life--;
+                } else if (this.state === 'retracting') {
+                    this.length -= this.speed * 1.5;
+                    if (this.length <= 0) {
+                        this.life = 0;
+                    }
+                }
+                
+                if (this.life <= 0) {
+                    this.state = 'done';
+                }
+            }
+            
+            draw() {
+                if (this.state === 'done') return;
+                
+                const cos = Math.cos(this.angle);
+                const sin = Math.sin(this.angle);
+                
+                // 计算当前钩爪位置
+                let currentHookX, currentHookY;
+                if (this.state === 'retracting') {
+                    currentHookX = this.startX + sin * this.length;
+                    currentHookY = this.startY - cos * this.length;
+                } else {
+                    currentHookX = this.hookX;
+                    currentHookY = this.hookY;
+                }
+                
+                // 绳索
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(this.startX, this.startY);
+                ctx.lineTo(currentHookX, currentHookY);
+                ctx.stroke();
+                
+                // 绳索高光
+                ctx.strokeStyle = '#aaa';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(this.startX, this.startY);
+                ctx.lineTo(currentHookX, currentHookY);
+                ctx.stroke();
+                
+                // 钩爪头
+                ctx.save();
+                ctx.translate(currentHookX, currentHookY);
+                ctx.rotate(this.angle);
+                
+                // 钩爪主体
+                ctx.fillStyle = '#aaa';
+                ctx.beginPath();
+                ctx.arc(0, 0, 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 钩爪尖
+                ctx.fillStyle = '#ccc';
+                ctx.beginPath();
+                ctx.moveTo(0, -8);
+                ctx.lineTo(-4, 0);
+                ctx.lineTo(4, 0);
+                ctx.closePath();
+                ctx.fill();
+                
+                // 发光效果
+                if (this.state === 'flying') {
+                    ctx.fillStyle = 'rgba(100, 200, 255, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (this.state === 'hooked') {
+                    ctx.fillStyle = 'rgba(0, 255, 100, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
             }
         }
         
@@ -897,6 +1043,11 @@
             if (e.key === ' ') {
                 e.preventDefault();
                 mech.shoot();
+            }
+            
+            if (e.key === 'f' || e.key === 'F') {
+                e.preventDefault();
+                mech.fireHook();
             }
         });
         
@@ -1022,6 +1173,16 @@
                 
                 if (particles[i].life <= 0) {
                     particles.splice(i, 1);
+                }
+            }
+            
+            // 更新和绘制钩爪
+            for (let i = hooks.length - 1; i >= 0; i--) {
+                hooks[i].update(mech);
+                hooks[i].draw();
+                
+                if (hooks[i].state === 'done') {
+                    hooks.splice(i, 1);
                 }
             }
             
