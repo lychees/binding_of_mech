@@ -262,6 +262,9 @@ function startLevel(level) {
     obstacles.length = 0;
     enemies.length = 0;
     
+    // 隐藏任务完成提示
+    document.getElementById('missionResult').style.display = 'none';
+    
     // 生成障碍物和树木
     generateObstacles();
     generateTrees();
