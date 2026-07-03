@@ -166,6 +166,28 @@ class Enemy {
                 ctx.fillRect(2, -this.size - 6, 4, 8);
                 break;
                 
+            case 'medic':
+                // 医疗兵 - 绿色圆形带白色十字
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                // 白色十字
+                ctx.fillStyle = '#ffffff';
+                const crossSize = this.size * 0.6;
+                const crossThickness = this.size * 0.2;
+                // 竖线
+                ctx.fillRect(-crossThickness / 2, -crossSize / 2, crossThickness, crossSize);
+                // 横线
+                ctx.fillRect(-crossSize / 2, -crossThickness / 2, crossSize, crossThickness);
+                // 外圈
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+                ctx.stroke();
+                break;
+                
             default:
                 // 步兵 - 方形
                 ctx.fillStyle = this.color;

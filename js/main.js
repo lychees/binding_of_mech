@@ -262,8 +262,9 @@ function startLevel(level) {
     obstacles.length = 0;
     enemies.length = 0;
     
-    // 生成障碍物
+    // 生成障碍物和树木
     generateObstacles();
+    generateTrees();
     
     // 生成敌人
     generateEnemiesForLevel(level);
@@ -309,7 +310,7 @@ function startLevel(level) {
 }
 
 function generateObstacles() {
-    const obstacleCount = 40;
+    const obstacleCount = 30;
     for (let i = 0; i < obstacleCount; i++) {
         const type = Math.random() < 0.5 ? 'rock' : 'building';
         const width = 30 + Math.random() * 80;
@@ -318,7 +319,28 @@ function generateObstacles() {
             x: Math.random() * (WORLD_WIDTH - width - 100) + 50,
             y: Math.random() * (WORLD_HEIGHT - height - 100) + 50,
             width, height, type,
-            color: type === 'rock' ? '#555' : '#3a3a4a'
+            color: type === 'rock' ? '#555' : '#3a3a4a',
+            health: type === 'rock' ? 50 : 100,
+            maxHealth: type === 'rock' ? 50 : 100
+        });
+    }
+}
+
+function generateTrees() {
+    const treeCount = 60;
+    for (let i = 0; i < treeCount; i++) {
+        const size = 15 + Math.random() * 25;
+        obstacles.push({
+            x: Math.random() * (WORLD_WIDTH - size * 2 - 100) + 50,
+            y: Math.random() * (WORLD_HEIGHT - size * 2 - 100) + 50,
+            width: size,
+            height: size,
+            type: 'tree',
+            color: '#2a5a2a',
+            trunkColor: '#5a3a2a',
+            health: 20,
+            maxHealth: 20,
+            isTree: true
         });
     }
 }
@@ -556,13 +578,29 @@ function updateBullets() {
         }
     }
     
-    // 子弹障碍物碰撞
+    // 子弹障碍物碰撞（树木可破坏）
     for (let i = bullets.length - 1; i >= 0; i--) {
         if (bullets[i] instanceof Bullet || bullets[i] instanceof LaserBeam) {
-            for (let j = 0; j < obstacles.length; j++) {
+            for (let j = obstacles.length - 1; j >= 0; j--) {
                 const obs = obstacles[j];
                 if (bullets[i].x >= obs.x && bullets[i].x <= obs.x + obs.width &&
                     bullets[i].y >= obs.y && bullets[i].y <= obs.y + obs.height) {
+                    // 可破坏障碍物（树木）
+                    if (obs.health !== undefined) {
+                        obs.health -= bullets[i].damage || 10;
+                        if (obs.health <= 0) {
+                            // 破坏特效
+                            for (let k = 0; k < 8; k++) {
+                                particles.push(new Particle(
+                                    obs.x + obs.width / 2, obs.y + obs.height / 2,
+                                    (Math.random() - 0.5) * 4,
+                                    (Math.random() - 0.5) * 4,
+                                    obs.isTree ? '#2a5a2a' : '#888'
+                                ));
+                            }
+                            obstacles.splice(j, 1);
+                        }
+                    }
                     bullets.splice(i, 1);
                     break;
                 }
@@ -596,11 +634,40 @@ function drawObstacles() {
         const sx = obs.x - cameraX;
         const sy = obs.y - cameraY;
         if (sx + obs.width < 0 || sx > canvas.width || sy + obs.height < 0 || sy > canvas.height) continue;
-        ctx.fillStyle = obs.color;
-        ctx.fillRect(sx, sy, obs.width, obs.height);
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(sx, sy, obs.width, obs.height);
+        
+        if (obs.isTree) {
+            // 绘制树木（圆形树冠 + 矩形树干）
+            const cx = sx + obs.width / 2;
+            const cy = sy + obs.height / 2;
+            const radius = obs.width / 2;
+            
+            // 树干
+            ctx.fillStyle = obs.trunkColor;
+            ctx.fillRect(cx - 3, cy + radius * 0.3, 6, radius * 0.7);
+            
+            // 树冠（根据血量变化颜色）
+            const healthRatio = obs.health / obs.maxHealth;
+            if (healthRatio > 0.5) {
+                ctx.fillStyle = obs.color;
+            } else {
+                ctx.fillStyle = '#8a6a3a'; // 受损变棕
+            }
+            ctx.beginPath();
+            ctx.arc(cx, cy - radius * 0.2, radius * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 树冠高光
+            ctx.fillStyle = 'rgba(100, 200, 100, 0.3)';
+            ctx.beginPath();
+            ctx.arc(cx - radius * 0.2, cy - radius * 0.4, radius * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            ctx.fillStyle = obs.color;
+            ctx.fillRect(sx, sy, obs.width, obs.height);
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(sx, sy, obs.width, obs.height);
+        }
     }
 }
 

@@ -64,6 +64,19 @@ export const ENEMY_TEMPLATES = {
         drawType: 'shotgunner',
         money: 40,
         exp: 20
+    },
+    medic: {
+        name: '医疗兵',
+        size: 13,
+        color: '#44ff88',
+        health: 35,
+        speed: 1.0,
+        fireRate: 40,
+        detectionRange: 280,
+        weapon: 'VULCAN',
+        drawType: 'medic',
+        money: 25,
+        exp: 12
     }
 };
 
