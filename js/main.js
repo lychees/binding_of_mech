@@ -484,7 +484,8 @@ function gameLoop() {
             return;
         }
     } else {
-        // 驾驶员在外时，机甲被击毁则爆炸，游戏继续
+        // 驾驶员在外时，机甲 parked 原地，敌人仍可攻击它
+        // mech.update() 已处理独立状态，此处仅处理被击毁
         if (mech.isDead) {
             destroyMech();
         }
@@ -504,6 +505,7 @@ function gameLoop() {
                     mech.health = mech.maxHealth * 0.3; // 修理30%血量复活
                 }
                 mech.isDead = false;
+                mech.isPilotEjected = false;
                 mech.x = pilot.x;
                 mech.y = pilot.y;
                 isPilotActive = false;
@@ -565,6 +567,7 @@ function gameLoop() {
 function ejectPilot() {
     if (isPilotActive || !mech) return;
     isPilotActive = true;
+    mech.isPilotEjected = true;
     pilot = new Pilot(mech.x, mech.y);
     
     // 弹射特效
