@@ -409,21 +409,48 @@
                     this.dashDuration--;
                     this.velocityX = this.dashDirectionX * this.dashSpeed;
                     this.velocityY = this.dashDirectionY * this.dashSpeed;
-                    // 冲刺特效
-                    if (this.dashDuration % 2 === 0) {
-                        for (let k = 0; k < 3; k++) {
-                            particles.push(new Particle(
-                                this.x, this.y,
-                                (Math.random() - 0.5) * 3,
-                                (Math.random() - 0.5) * 3,
-                                '#00d4ff'
-                            ));
-                        }
+                    
+                    // 冲刺残影特效
+                    for (let k = 0; k < 5; k++) {
+                        const offset = (k - 2) * 8;
+                        particles.push({
+                            x: this.x - this.dashDirectionX * offset + (Math.random() - 0.5) * 6,
+                            y: this.y - this.dashDirectionY * offset + (Math.random() - 0.5) * 6,
+                            vx: (Math.random() - 0.5) * 2,
+                            vy: (Math.random() - 0.5) * 2,
+                            life: 15 + Math.random() * 10,
+                            maxLife: 25,
+                            color: '#00d4ff',
+                            size: 4 + Math.random() * 4,
+                            update: function() {
+                                this.x += this.vx;
+                                this.y += this.vy;
+                                this.vx *= 0.95;
+                                this.vy *= 0.95;
+                                this.life--;
+                            },
+                            draw: function() {
+                                const opacity = this.life / this.maxLife;
+                                ctx.fillStyle = this.color;
+                                ctx.globalAlpha = opacity * 0.6;
+                                ctx.beginPath();
+                                ctx.arc(this.x - cameraX, this.y - cameraY, this.size * opacity, 0, Math.PI * 2);
+                                ctx.fill();
+                                ctx.globalAlpha = 1;
+                            }
+                        });
                     }
+                    
+                    // 冲刺光晕
+                    ctx.fillStyle = 'rgba(0, 212, 255, 0.15)';
+                    ctx.beginPath();
+                    ctx.arc(this.x - cameraX, this.y - cameraY, 40, 0, Math.PI * 2);
+                    ctx.fill();
+                    
                     if (this.dashDuration <= 0) {
                         this.isDashing = false;
-                        this.velocityX *= 0.3;
-                        this.velocityY *= 0.3;
+                        this.velocityX *= 0.5;
+                        this.velocityY *= 0.5;
                     }
                 }
                 
@@ -441,9 +468,9 @@
                     let dashX = 0;
                     let dashY = 0;
                     if (keys['w'] || keys['W']) dashY = -1;
-                    else if (keys['s'] || keys['S']) dashY = 1;
+                    if (keys['s'] || keys['S']) dashY = 1;
                     if (keys['a'] || keys['A']) dashX = -1;
-                    else if (keys['d'] || keys['D']) dashX = 1;
+                    if (keys['d'] || keys['D']) dashX = 1;
                     
                     if (dashX !== 0 || dashY !== 0) {
                         this.isDashing = true;
