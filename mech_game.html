@@ -1330,15 +1330,6 @@
         
         document.addEventListener('keyup', (e) => {
             keys[e.key] = false;
-            
-            // 清理方向键状态，防止按键卡住
-            if (e.key === 'Shift') {
-                // Shift 松开时，如果正在冲刺，不清理方向键
-                // 但如果不在冲刺，确保方向键状态正确
-                if (!mech.isDashing) {
-                    // 方向键保持原样
-                }
-            }
         });
         
         function drawGrid() {
