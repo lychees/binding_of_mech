@@ -311,10 +311,12 @@ class Mech extends Entity {
     updateMovement() {
         const input = this.getInput();
         let moveForward = input.forward ? 1 : input.backward ? -1 : 0;
-        let moveSide = input.left ? -1 : input.right ? 1 : 0;
+        const strafeLeft = input.strafeLeft || input.left;
+        const strafeRight = input.strafeRight || input.right;
+        let moveSide = strafeLeft ? -1 : strafeRight ? 1 : 0;
 
         if (input.dash && !this.isDashing && this.dashCooldown <= 0) {
-            let dashX = input.left ? -1 : input.right ? 1 : 0;
+            let dashX = strafeLeft ? -1 : strafeRight ? 1 : 0;
             let dashY = input.forward ? -1 : input.backward ? 1 : 0;
             if (dashX !== 0 || dashY !== 0) {
                 const n = normalize(dashX, dashY);
@@ -380,14 +382,15 @@ class Mech extends Entity {
             this.turnDeceleration, 0.15);
         this.bodyAngle += this.turnVelocity;
 
+        // No upper body turning from strafe keys; only weapon aim keys
         this.upperTurnVelocity = this.applyTurn(this.upperTurnVelocity,
-            input.right ? -this.maxUpperTurnSpeed : input.left ? this.maxUpperTurnSpeed : 0,
+            input.weaponRight ? -this.maxUpperTurnSpeed : input.weaponLeft ? this.maxUpperTurnSpeed : 0,
             this.upperTurnDeceleration, 0.12);
         this.upperAngle += this.upperTurnVelocity;
         this.upperAngle = clamp(this.upperAngle, -Math.PI * 0.8, Math.PI * 0.8);
 
         this.weaponTurnVelocity = this.applyTurn(this.weaponTurnVelocity,
-            input.dash && input.left ? -this.maxWeaponTurnSpeed : input.dash && input.right ? this.maxWeaponTurnSpeed : 0,
+            input.dash && input.weaponLeft ? -this.maxWeaponTurnSpeed : input.dash && input.weaponRight ? this.maxWeaponTurnSpeed : 0,
             this.weaponTurnDeceleration, 0.1);
         this.weaponAngle += this.weaponTurnVelocity;
     }
