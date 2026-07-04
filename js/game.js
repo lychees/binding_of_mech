@@ -16,6 +16,8 @@ import { rollBlueprintDrops } from './blueprints.js';
 import { dist, normalize } from './utils.js';
 import { getPlayerSave, setPlayerSave, getWeaponEditorData } from './ui.js';
 
+let _currentPlayerSave = null;
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = CANVAS_WIDTH;
@@ -59,6 +61,7 @@ export function stopGame() {
 }
 
 export function startLevel(level, playerSave) {
+    _currentPlayerSave = playerSave;
     setPlayerSave(playerSave);
     window.__startLevelCalled = true;
     window.evacuationPoint = null;
@@ -907,6 +910,7 @@ function drawMinimap() {
 
 function showMissionResult(won) {
     const blueprintDrops = won ? rollBlueprintDrops(currentLevel ? currentLevel.id : 1) : [];
+    const playerSave = _currentPlayerSave || getPlayerSave();
     const result = document.getElementById('missionResult');
     document.getElementById('resultTitle').textContent = won ? '任务完成' : '任务失败';
     document.getElementById('rewardMoney').textContent = missionMoney;
