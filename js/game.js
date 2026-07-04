@@ -801,6 +801,31 @@ function updateHUD() {
     }
 
     drawPlayerHealthBars();
+    drawLaserChargeBar();
+}
+
+function drawLaserChargeBar() {
+    const active = isPilotActive && pilot ? null : (players.find(p => !p.isDead) || players[0]);
+    if (!active || active.isDead) return;
+    if (active.currentWeapon?.drawType !== 'laser' || !active.isChargingLaser) return;
+
+    const barWidth = 120;
+    const barHeight = 10;
+    const x = 10;
+    const y = 110;
+    const ratio = active.laserCharge / active.maxLaserCharge;
+    const ready = ratio >= active.laserChargeThreshold / active.maxLaserCharge;
+
+    ctx.fillStyle = 'rgba(50, 50, 50, 0.8)';
+    ctx.fillRect(x, y, barWidth, barHeight);
+    ctx.fillStyle = ready ? '#ff66cc' : '#ffaa44';
+    ctx.fillRect(x, y, barWidth * ratio, barHeight);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, barWidth, barHeight);
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px monospace';
+    ctx.fillText(ready ? 'CHARGE MAX' : 'CHARGING', x, y + 22);
 }
 
 function drawPlayerHealthBars() {

@@ -166,6 +166,11 @@ class Mech extends Entity {
         this.swingProgress = 0;
         this.swingDirection = 1;
 
+        this.laserCharge = 0;
+        this.isChargingLaser = false;
+        this.maxLaserCharge = 60;
+        this.laserChargeThreshold = 30;
+
         this.isDashing = false;
         this.dashCooldown = 0;
         this.dashDuration = 0;
@@ -190,6 +195,7 @@ class Mech extends Entity {
         }
         this.input = input;
         this.handleWeaponSwitch();
+        this.updateLaserCharge();
         if (this.fireCooldown > 0) this.fireCooldown--;
         this.updateHeat();
         this.updateSwing();
@@ -255,6 +261,70 @@ class Mech extends Entity {
         this.overheatTimer = 0;
         this.heatLevel = 0;
         this.fireCooldown = 0;
+    }
+
+    updateLaserCharge() {
+        const input = this.getInput();
+        const w = this.currentWeapon;
+        if (w?.drawType !== 'laser') {
+            if (this.isChargingLaser) this.fireLaserCharge();
+            return;
+        }
+
+        if (input.shoot) {
+            this.isChargingLaser = true;
+            if (this.laserCharge < this.maxLaserCharge) {
+                this.laserCharge++;
+            }
+        } else if (this.isChargingLaser) {
+            this.fireLaserCharge();
+        }
+    }
+
+    fireLaserCharge() {
+        const w = this.currentWeapon;
+        if (!w || w.drawType !== 'laser' || this.fireCooldown > 0) {
+            this.isChargingLaser = false;
+            this.laserCharge = 0;
+            return;
+        }
+
+        const chargeRatio = this.laserCharge / this.maxLaserCharge;
+        const charged = this.laserCharge >= this.laserChargeThreshold;
+        const damage = w.damage * (1 + chargeRatio * 2);
+        const width = w.bulletRadius * 2 * (1 + chargeRatio);
+        const life = Math.floor(w.bulletLife * (1 + chargeRatio));
+
+        this.fireCooldown = w.fireRate;
+        playShootSound('laser');
+
+        const totalAngle = this.bodyAngle + this.upperAngle + this.weaponAngle;
+        const cos = Math.cos(totalAngle);
+        const sin = Math.sin(totalAngle);
+        const muzzleX = this.x + sin * w.barrelLength;
+        const muzzleY = this.y - cos * w.barrelLength;
+
+        if (charged) {
+            const beam = new LaserBeam(muzzleX, muzzleY, totalAngle, {
+                ...w,
+                damage,
+                bulletRadius: width / 2,
+                bulletLife: life
+            });
+            beam.maxLength = Math.max(WORLD_WIDTH, WORLD_HEIGHT, Math.sqrt(CANVAS_WIDTH ** 2 + CANVAS_HEIGHT ** 2) * 1.5);
+            beam.fadeStart = beam.maxLength * 0.3;
+            beam.fadeEnd = beam.maxLength;
+            beam.width = width;
+            bullets.push(beam);
+            this.velocityX -= sin * w.recoil * (1 + chargeRatio);
+            this.velocityY += cos * w.recoil * (1 + chargeRatio);
+            particles.push(...createSpark(muzzleX, muzzleY, '#ff66cc', 12, 4));
+        } else {
+            bullets.push(new LaserBeam(muzzleX, muzzleY, totalAngle, w));
+        }
+
+        this.isChargingLaser = false;
+        this.laserCharge = 0;
     }
 
     updateSwing() {
@@ -566,6 +636,22 @@ class Mech extends Entity {
         ctx.beginPath();
         ctx.arc(0, -5, 6, 0, Math.PI * 2);
         ctx.fill();
+
+        if (w.drawType === 'laser' && this.isChargingLaser && this.laserCharge > 0) {
+            const chargeRatio = this.laserCharge / this.maxLaserCharge;
+            const pulse = 1 + Math.sin(Date.now() / 50) * 0.2;
+            ctx.strokeStyle = `rgba(255, 68, 170, ${0.3 + chargeRatio * 0.5})`;
+            ctx.lineWidth = (2 + chargeRatio * 6) * pulse;
+            ctx.beginPath();
+            ctx.moveTo(0, -5);
+            ctx.lineTo(0, -w.barrelLength - 5 - chargeRatio * 10);
+            ctx.stroke();
+            ctx.fillStyle = `rgba(255, 200, 230, ${0.5 + chargeRatio * 0.5})`;
+            ctx.beginPath();
+            ctx.arc(0, -w.barrelLength - 5, 3 + chargeRatio * 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
         const renderer = WEAPON_RENDERERS[w.drawType];
         if (renderer) renderer(ctx, w, this);
     }
@@ -648,7 +734,8 @@ class Mech extends Entity {
                 bullets.push(new Bullet(muzzleX, muzzleY, totalAngle + (Math.random() - 0.5) * w.spread * 2, w));
             }
         } else if (w.drawType === 'laser') {
-            bullets.push(new LaserBeam(muzzleX, muzzleY, totalAngle, w));
+            // 激光现在在 updateLaserCharge 中处理
+            return;
         } else {
             bullets.push(new Bullet(muzzleX, muzzleY, totalAngle + (Math.random() - 0.5) * w.spread * 2, w));
         }
