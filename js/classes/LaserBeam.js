@@ -12,6 +12,7 @@ class LaserBeam {
         this.length = 0;
         this.width = weapon.bulletRadius * 2;
         this.isEnemyBullet = false;
+        this.chargeRatio = weapon.chargeRatio || (this.width / 6);
 
         const screenDiagonal = Math.sqrt(CANVAS_WIDTH ** 2 + CANVAS_HEIGHT ** 2);
         this.maxLength = Math.max(WORLD_WIDTH, WORLD_HEIGHT, screenDiagonal * 1.5);
@@ -37,33 +38,47 @@ class LaserBeam {
         const opacity = this.life / this.maxLife;
         const cos = Math.cos(this.angle);
         const sin = Math.sin(this.angle);
+        const endX = this.x + sin * this.length;
+        const endY = this.y - cos * this.length;
 
-        ctx.strokeStyle = 'rgba(255, 100, 180, ' + (opacity * 0.3) + ')';
-        ctx.lineWidth = this.width + 6;
+        const outerGlow = this.width * (2.5 + this.chargeRatio * 2);
+        const coreWidth = this.width * (0.4 + this.chargeRatio * 0.3);
+
+        ctx.strokeStyle = `rgba(255, 100, 180, ${opacity * 0.25})`;
+        ctx.lineWidth = outerGlow;
         ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(this.x - cameraX, this.y - cameraY);
-        ctx.lineTo(this.x + sin * this.length - cameraX, this.y - cos * this.length - cameraY);
+        ctx.lineTo(endX - cameraX, endY - cameraY);
         ctx.stroke();
 
-        ctx.strokeStyle = 'rgba(255, 68, 170, ' + (opacity * 0.6) + ')';
+        ctx.strokeStyle = `rgba(255, 68, 170, ${opacity * 0.55})`;
         ctx.lineWidth = this.width + 2;
         ctx.beginPath();
         ctx.moveTo(this.x - cameraX, this.y - cameraY);
-        ctx.lineTo(this.x + sin * this.length - cameraX, this.y - cos * this.length - cameraY);
+        ctx.lineTo(endX - cameraX, endY - cameraY);
         ctx.stroke();
 
-        ctx.strokeStyle = 'rgba(255, 200, 230, ' + opacity + ')';
-        ctx.lineWidth = this.width * 0.5;
+        ctx.strokeStyle = `rgba(255, 220, 245, ${opacity})`;
+        ctx.lineWidth = coreWidth;
         ctx.beginPath();
         ctx.moveTo(this.x - cameraX, this.y - cameraY);
-        ctx.lineTo(this.x + sin * this.length - cameraX, this.y - cos * this.length - cameraY);
+        ctx.lineTo(endX - cameraX, endY - cameraY);
         ctx.stroke();
 
-        ctx.fillStyle = 'rgba(255, 255, 255, ' + opacity + ')';
+        ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
         ctx.beginPath();
-        ctx.arc(this.x + sin * this.length - cameraX, this.y - cos * this.length - cameraY, this.width, 0, Math.PI * 2);
+        ctx.arc(endX - cameraX, endY - cameraY, this.width * 0.8, 0, Math.PI * 2);
         ctx.fill();
+
+        if (this.chargeRatio >= 1) {
+            ctx.strokeStyle = `rgba(255, 200, 230, ${opacity * 0.4})`;
+            ctx.lineWidth = this.width * 4;
+            ctx.beginPath();
+            ctx.moveTo(this.x - cameraX, this.y - cameraY);
+            ctx.lineTo(endX - cameraX, endY - cameraY);
+            ctx.stroke();
+        }
     }
 }
 

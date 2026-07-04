@@ -290,9 +290,9 @@ class Mech extends Entity {
         }
 
         const chargeRatio = this.laserCharge / this.maxLaserCharge;
-        const damage = w.damage * (0.6 + chargeRatio * 2.4);
-        const width = w.bulletRadius * 2 * (0.6 + chargeRatio * 1.4);
-        const life = Math.floor(w.bulletLife * (0.6 + chargeRatio * 1.4));
+        const damage = w.damage * (0.45 + chargeRatio * 2.55);
+        const width = w.bulletRadius * 2 * (0.5 + chargeRatio * 2.0);
+        const life = Math.floor(w.bulletLife * (0.5 + chargeRatio * 1.5));
 
         this.fireCooldown = w.fireRate;
         playShootSound('laser');
@@ -307,7 +307,8 @@ class Mech extends Entity {
             ...w,
             damage,
             bulletRadius: width / 2,
-            bulletLife: life
+            bulletLife: life,
+            chargeRatio
         });
         beam.maxLength = Math.max(WORLD_WIDTH, WORLD_HEIGHT, Math.sqrt(CANVAS_WIDTH ** 2 + CANVAS_HEIGHT ** 2) * 1.5);
         beam.fadeStart = beam.maxLength * 0.3;
@@ -315,18 +316,32 @@ class Mech extends Entity {
         beam.width = width;
         bullets.push(beam);
 
-        this.velocityX -= sin * w.recoil * (0.6 + chargeRatio * 1.4);
-        this.velocityY += cos * w.recoil * (0.6 + chargeRatio * 1.4);
+        this.velocityX -= sin * w.recoil * (0.5 + chargeRatio * 2.0);
+        this.velocityY += cos * w.recoil * (0.5 + chargeRatio * 2.0);
+
+        const particleColor = chargeRatio >= 1 ? '#ff66cc' : '#ff88cc';
+        const particleCount = Math.floor(6 + chargeRatio * 24);
+        const particleSize = 2 + chargeRatio * 4;
+        particles.push(...createSpark(muzzleX, muzzleY, particleColor, particleCount, particleSize));
+
+        for (let i = 0; i < Math.floor(8 + chargeRatio * 24); i++) {
+            const a = totalAngle + (Math.random() - 0.5) * 0.8;
+            const s = (1 + Math.random() * 4) * (0.8 + chargeRatio * 1.5);
+            const p = new Particle(muzzleX, muzzleY, Math.sin(a) * s, -Math.cos(a) * s, chargeRatio >= 1 ? '#ffaaee' : '#ff66aa');
+            p.life = 20 + Math.floor(Math.random() * 20);
+            p.maxLife = p.life;
+            particles.push(p);
+        }
 
         if (chargeRatio >= 1) {
-            particles.push(...createSpark(muzzleX, muzzleY, '#ff66cc', 20, 6));
-            for (let i = 0; i < 12; i++) {
+            for (let i = 0; i < 16; i++) {
                 const a = Math.random() * Math.PI * 2;
-                const s = 1 + Math.random() * 3;
-                particles.push(new Particle(muzzleX, muzzleY, Math.cos(a) * s, Math.sin(a) * s, '#ffaaee'));
+                const s = 2 + Math.random() * 5;
+                const p = new Particle(muzzleX, muzzleY, Math.cos(a) * s, Math.sin(a) * s, '#ffffff');
+                p.life = 15 + Math.floor(Math.random() * 15);
+                p.maxLife = p.life;
+                particles.push(p);
             }
-        } else if (chargeRatio > 0.5) {
-            particles.push(...createSpark(muzzleX, muzzleY, '#ff66cc', 8, 3));
         }
 
         this.isChargingLaser = false;
