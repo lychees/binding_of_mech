@@ -29,10 +29,12 @@ let isPilotActive = false;
 let currentLevel = null;
 let missionMoney = 0;
 let missionExp = 0;
+let missionMaterials = 0;
 let gameRunning = false;
 let animationId = null;
 let fortress = null;
 let fortressMinions = [];
+const floatingTexts = [];
 
 // 玩家存档
 let playerSave = loadSave();
@@ -269,6 +271,7 @@ function startLevel(level) {
     currentLevel = level;
     missionMoney = 0;
     missionExp = 0;
+    missionMaterials = 0;
     
     document.getElementById('mainMenu').style.display = 'none';
     document.getElementById('levelSelect').style.display = 'none';
@@ -281,6 +284,7 @@ function startLevel(level) {
     hooks.length = 0;
     obstacles.length = 0;
     enemies.length = 0;
+    floatingTexts.length = 0;
     
     // 隐藏任务完成提示
     document.getElementById('missionResult').style.display = 'none';
@@ -288,6 +292,7 @@ function startLevel(level) {
     // 生成障碍物和树木
     generateObstacles();
     generateTrees();
+    generateCrates();
     
     // 生成敌人
     generateEnemiesForLevel(level);
@@ -425,6 +430,24 @@ function generateTrees() {
     }
 }
 
+function generateCrates() {
+    const crateCount = 5 + Math.floor(Math.random() * 6);
+    for (let i = 0; i < crateCount; i++) {
+        const roll = Math.random();
+        const type = roll < 0.6 ? 'alloySteel' : 'darkFuel';
+        drops.push({
+            x: Math.random() * (WORLD_WIDTH - 200) + 100,
+            y: Math.random() * (WORLD_HEIGHT - 200) + 100,
+            type: 'crate',
+            crateType: type,
+            amount: type === 'alloySteel' ? 10 + Math.floor(Math.random() * 6) : 5 + Math.floor(Math.random() * 4),
+            radius: 12,
+            color: type === 'alloySteel' ? '#a0a0a0' : '#4a0080',
+            life: 1200
+        });
+    }
+}
+
 function generateEnemiesForLevel(level) {
     let types = level.enemyTypes;
     if (types.includes('all')) {
@@ -455,6 +478,7 @@ function showMissionResult(won) {
     document.getElementById('resultTitle').textContent = won ? '任务完成' : '任务失败';
     document.getElementById('rewardMoney').textContent = missionMoney;
     document.getElementById('rewardExp').textContent = missionExp;
+    document.getElementById('rewardMaterials').textContent = missionMaterials;
     
     // 显示蓝图掉落
     if (blueprintDrops.length > 0) {
@@ -469,7 +493,7 @@ function showMissionResult(won) {
     result.style.display = 'block';
     
     if (won) {
-        playerSave = addMoneyExp(playerSave, missionMoney, missionExp);
+        playerSave = addMoneyExp(playerSave, missionMoney, missionExp, missionMaterials);
         if (currentLevel && !playerSave.levelsCompleted.includes(currentLevel.id)) {
             playerSave.levelsCompleted.push(currentLevel.id);
             playerSave.highestLevel = Math.max(playerSave.highestLevel, currentLevel.id);
@@ -551,6 +575,21 @@ function gameLoop() {
                         amount: 30,
                         radius: 10,
                         color: '#00ff88',
+                        life: 600
+                    });
+                }
+                // 敌人概率掉落材料箱
+                if (Math.random() < 0.15) {
+                    const roll = Math.random();
+                    const type = roll < 0.6 ? 'alloySteel' : 'darkFuel';
+                    drops.push({
+                        x: enemies[i].x + (Math.random() - 0.5) * 30,
+                        y: enemies[i].y + (Math.random() - 0.5) * 30,
+                        type: 'crate',
+                        crateType: type,
+                        amount: type === 'alloySteel' ? 5 + Math.floor(Math.random() * 6) : 3 + Math.floor(Math.random() * 4),
+                        radius: 12,
+                        color: type === 'alloySteel' ? '#a0a0a0' : '#4a0080',
                         life: 600
                     });
                 }
@@ -652,6 +691,9 @@ function gameLoop() {
     // 更新和绘制掉落物
     updateDrops();
     
+    // 更新浮动文字
+    updateFloatingTexts();
+    
     drawWeaponUI();
     drawMinimap();
     updateHUD();
@@ -746,6 +788,21 @@ function updateBullets() {
                                 amount: 30,
                                 radius: 10,
                                 color: '#00ff88',
+                                life: 600
+                            });
+                        }
+                        // 敌人概率掉落材料箱
+                        if (Math.random() < 0.15) {
+                            const roll = Math.random();
+                            const type = roll < 0.6 ? 'alloySteel' : 'darkFuel';
+                            drops.push({
+                                x: enemies[j].x + (Math.random() - 0.5) * 30,
+                                y: enemies[j].y + (Math.random() - 0.5) * 30,
+                                type: 'crate',
+                                crateType: type,
+                                amount: type === 'alloySteel' ? 5 + Math.floor(Math.random() * 6) : 3 + Math.floor(Math.random() * 4),
+                                radius: 12,
+                                color: type === 'alloySteel' ? '#a0a0a0' : '#4a0080',
                                 life: 600
                             });
                         }
@@ -1002,6 +1059,7 @@ function drawWeaponUI() {
 function updateHUD() {
     document.getElementById('hudMoney').textContent = missionMoney;
     document.getElementById('hudExp').textContent = missionExp;
+    document.getElementById('hudMaterials').textContent = missionMaterials;
     document.getElementById('hudEnemies').textContent = enemies.length;
     document.getElementById('hudRepair').textContent = inventory.repairKits;
     
@@ -1074,6 +1132,22 @@ function updateDrops() {
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 10px monospace';
             ctx.fillText('+', d.x - cameraX - 3, d.y - cameraY + 3);
+        } else if (d.type === 'crate') {
+            // 材料箱 - 方形箱子
+            const sx = d.x - cameraX - d.radius;
+            const sy = d.y - cameraY - d.radius;
+            ctx.fillStyle = d.crateType === 'alloySteel' ? '#6a6a6a' : '#2a004a';
+            ctx.fillRect(sx, sy, d.radius * 2, d.radius * 2);
+            ctx.strokeStyle = d.crateType === 'alloySteel' ? '#aaaaaa' : '#8a4aff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(sx, sy, d.radius * 2, d.radius * 2);
+            // 箱子高光
+            ctx.fillStyle = 'rgba(255,255,255,0.2)';
+            ctx.fillRect(sx + 2, sy + 2, d.radius * 2 - 4, 4);
+            // 标记
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 9px monospace';
+            ctx.fillText(d.crateType === 'alloySteel' ? '钢' : '燃', d.x - cameraX - 4, d.y - cameraY + 3);
         }
         ctx.globalAlpha = 1;
         
@@ -1096,11 +1170,46 @@ function updateDrops() {
                     d.x, d.y,
                     (Math.random() - 0.5) * 3,
                     (Math.random() - 0.5) * 3,
-                    d.type === 'money' ? '#ffcc00' : '#00ff88'
+                    d.type === 'money' ? '#ffcc00' : d.type === 'crate' ? '#00ccff' : '#00ff88'
                 ));
+            }
+            if (d.type === 'crate') {
+                // 打开箱子提示
+                const materialName = d.crateType === 'alloySteel' ? '合金钢材' : '暗星燃料';
+                showFloatingText(d.x, d.y - 20, `+${d.amount} ${materialName}`);
+                missionMaterials += d.amount;
             }
             drops.splice(i, 1);
         }
+    }
+}
+
+function showFloatingText(x, y, text) {
+    floatingTexts.push({
+        x, y, text,
+        life: 60,
+        maxLife: 60,
+        vy: -1
+    });
+}
+
+function updateFloatingTexts() {
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y += ft.vy;
+        ft.life--;
+        const alpha = ft.life / ft.maxLife;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#00ccff';
+        ctx.font = 'bold 12px monospace';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        const sx = ft.x - cameraX;
+        const sy = ft.y - cameraY;
+        ctx.strokeText(ft.text, sx, sy);
+        ctx.fillText(ft.text, sx, sy);
+        ctx.globalAlpha = 1;
+        if (ft.life <= 0) floatingTexts.splice(i, 1);
     }
 }
 

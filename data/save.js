@@ -25,9 +25,23 @@ export function migrateSave(data) {
     }
     if (!data.partsInventory) {
         data.partsInventory = createDefaultPartsInventory();
+    } else {
+        // 确保拥有所有武器模块各一个
+        const defaultInv = createDefaultPartsInventory();
+        for (const moduleId in defaultInv) {
+            if (!data.partsInventory[moduleId]) {
+                data.partsInventory[moduleId] = { level: 1, count: defaultInv[moduleId].count };
+            }
+        }
     }
     if (!data.researchedModules) {
-        data.researchedModules = ['C_STANDARD', 'H_STANDARD', 'A_STANDARD', 'L_STANDARD', 'CO_STANDARD', 'W_VULCAN'];
+        data.researchedModules = ['C_STANDARD', 'H_STANDARD', 'A_STANDARD', 'L_STANDARD', 'CO_STANDARD', 'W_VULCAN', 'W_SHOTGUN', 'W_CANNON', 'W_LASER', 'W_BEAM_SWORD'];
+    } else {
+        // 确保所有武器模块已解锁
+        const allWeapons = ['W_VULCAN', 'W_SHOTGUN', 'W_CANNON', 'W_LASER', 'W_BEAM_SWORD'];
+        for (const w of allWeapons) {
+            if (!data.researchedModules.includes(w)) data.researchedModules.push(w);
+        }
     }
     if (!data.blueprints) {
         data.blueprints = [];
@@ -61,7 +75,11 @@ export function createDefaultPartsInventory() {
         A_STANDARD: { level: 1, count: 1 },
         L_STANDARD: { level: 1, count: 1 },
         CO_STANDARD: { level: 1, count: 1 },
-        W_VULCAN: { level: 1, count: 2 }
+        W_VULCAN: { level: 1, count: 2 },
+        W_SHOTGUN: { level: 1, count: 1 },
+        W_CANNON: { level: 1, count: 1 },
+        W_LASER: { level: 1, count: 1 },
+        W_BEAM_SWORD: { level: 1, count: 1 }
     };
 }
 
@@ -74,7 +92,7 @@ export function createDefaultSave() {
         materials: 0,
         mechBuild: createDefaultMechBuild(),
         partsInventory: createDefaultPartsInventory(),
-        researchedModules: ['C_STANDARD', 'H_STANDARD', 'A_STANDARD', 'L_STANDARD', 'CO_STANDARD', 'W_VULCAN'],
+        researchedModules: ['C_STANDARD', 'H_STANDARD', 'A_STANDARD', 'L_STANDARD', 'CO_STANDARD', 'W_VULCAN', 'W_SHOTGUN', 'W_CANNON', 'W_LASER', 'W_BEAM_SWORD'],
         blueprints: [],
         // 保留旧版字段用于兼容
         mech: {
