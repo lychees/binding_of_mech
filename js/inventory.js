@@ -727,6 +727,86 @@ export const ITEM_DEFS = {
         icon: '⚓',
         description: '重型打捞用的合金锚，极其沉重，收藏家愿意出高价收购',
         weight: 50.0
+    },
+
+    // 大药/小药
+    smallRepairKit: {
+        id: 'smallRepairKit',
+        name: '小红',
+        type: ITEM_TYPES.CONSUMABLE,
+        width: 1,
+        height: 1,
+        maxStack: 20,
+        rarity: 'common',
+        icon: '❤️',
+        description: '快速恢复机甲 15 点生命值',
+        effect: { heal: 15, target: 'mech' },
+        weight: 0.3
+    },
+    mediumRepairKit: {
+        id: 'mediumRepairKit',
+        name: '中红',
+        type: ITEM_TYPES.CONSUMABLE,
+        width: 1,
+        height: 1,
+        maxStack: 15,
+        rarity: 'uncommon',
+        icon: '💖',
+        description: '恢复机甲 40 点生命值',
+        effect: { heal: 40, target: 'mech' },
+        weight: 0.5
+    },
+    largeRepairKit: {
+        id: 'largeRepairKit',
+        name: '大红',
+        type: ITEM_TYPES.CONSUMABLE,
+        width: 2,
+        height: 1,
+        maxStack: 10,
+        rarity: 'rare',
+        icon: '💗',
+        description: '完全恢复机甲 100 点生命值',
+        effect: { heal: 100, target: 'mech' },
+        weight: 1.0
+    },
+    megaRepairKit: {
+        id: 'megaRepairKit',
+        name: '大紫',
+        type: ITEM_TYPES.CONSUMABLE,
+        width: 2,
+        height: 2,
+        maxStack: 5,
+        rarity: 'epic',
+        icon: '💜',
+        description: '瞬间恢复机甲 250 点生命值',
+        effect: { heal: 250, target: 'mech' },
+        weight: 2.0
+    },
+    smallAidKit: {
+        id: 'smallAidKit',
+        name: '小蓝',
+        type: ITEM_TYPES.CONSUMABLE,
+        width: 1,
+        height: 1,
+        maxStack: 15,
+        rarity: 'common',
+        icon: '💧',
+        description: '恢复飞行员 10 点生命值',
+        effect: { heal: 10, target: 'pilot' },
+        weight: 0.2
+    },
+    largeAidKit: {
+        id: 'largeAidKit',
+        name: '大蓝',
+        type: ITEM_TYPES.CONSUMABLE,
+        width: 1,
+        height: 2,
+        maxStack: 8,
+        rarity: 'uncommon',
+        icon: '💦',
+        description: '完全恢复飞行员生命值',
+        effect: { heal: 50, target: 'pilot' },
+        weight: 0.4
     }
 };
 
