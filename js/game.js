@@ -261,7 +261,7 @@ function setupWeapons(build, playerSave, targetMech) {
 
     targetMech.weaponList = weaponList;
     targetMech.currentWeapon = weaponList[0];
-    targetMech.weaponKeys = ['1', '2', '3', '4', '5'].slice(0, weaponList.length);
+    targetMech.weaponKeys = ['1', '2', '3', '4', '5', '6', '7'].slice(0, weaponList.length);
 }
 
 function spawnFortress() {

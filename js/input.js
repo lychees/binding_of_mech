@@ -19,7 +19,9 @@ const PLAYER_BINDINGS = {
         weapon2: ['2'],
         weapon3: ['3'],
         weapon4: ['4'],
-        weapon5: ['5']
+        weapon5: ['5'],
+        weapon6: ['6'],
+        weapon7: ['7']
     },
     p2: {
         forward: ['ArrowUp'],
@@ -39,7 +41,9 @@ const PLAYER_BINDINGS = {
         weapon2: ['8'],
         weapon3: ['9'],
         weapon4: ['0'],
-        weapon5: ['-']
+        weapon5: ['-'],
+        weapon6: ['='],
+        weapon7: ['Backspace']
     }
 };
 
@@ -87,7 +91,7 @@ function updateFromKeys(input, bindings) {
         input.strafeRight = input.right;
     }
 
-    const weaponKeys = [bindings.weapon1[0], bindings.weapon2[0], bindings.weapon3[0], bindings.weapon4[0], bindings.weapon5[0]];
+    const weaponKeys = [bindings.weapon1[0], bindings.weapon2[0], bindings.weapon3[0], bindings.weapon4[0], bindings.weapon5[0], bindings.weapon6?.[0], bindings.weapon7?.[0]];
     input.weaponSwitch = weaponKeys.findIndex(k => keys[k]) + 1;
     if (input.weaponSwitch > 0) {
         keys[weaponKeys[input.weaponSwitch - 1]] = false;

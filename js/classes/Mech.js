@@ -167,8 +167,8 @@ class Mech extends Entity {
 
         this.currentWeapon = WEAPONS.VULCAN;
         this.fireCooldown = 0;
-        this.weaponKeys = ['1', '2', '3', '4', '5'];
-        this.weaponList = [WEAPONS.VULCAN, WEAPONS.SHOTGUN, WEAPONS.CANNON, WEAPONS.LASER, WEAPONS.BEAM_SWORD];
+        this.weaponKeys = ['1', '2', '3', '4', '5', '6', '7'];
+        this.weaponList = [WEAPONS.VULCAN, WEAPONS.SHOTGUN, WEAPONS.CANNON, WEAPONS.LASER, WEAPONS.BEAM_SWORD, WEAPONS.MISSILE, WEAPONS.HOMING_MISSILE];
 
         this.collisionRadius = 25;
         this.collisionDamageMultiplier = 0.8;
