@@ -607,6 +607,14 @@ function updateBullets() {
                         break;
                     }
                 }
+                if (!hit && fortress && !fortress.isDead) {
+                    if (dist(b.x, b.y, fortress.x, fortress.y) < fortress.size + b.radius) {
+                        fortress.takeHit(b.damage);
+                        b.explode();
+                        playHitSound();
+                        hit = true;
+                    }
+                }
                 if (hit) {
                     bullets.splice(i, 1);
                     continue;
@@ -653,6 +661,7 @@ function updateBullets() {
         }
 
         if (b instanceof Bullet && !b.isEnemyBullet) {
+            let hitEnemy = false;
             for (let j = enemies.length - 1; j >= 0; j--) {
                 const d = dist(b.x, b.y, enemies[j].x, enemies[j].y);
                 if (d < enemies[j].size + (b.radius || 5)) {
@@ -665,7 +674,15 @@ function updateBullets() {
                         enemies.splice(j, 1);
                     }
                     bullets.splice(i, 1);
+                    hitEnemy = true;
                     break;
+                }
+            }
+            if (!hitEnemy && fortress && !fortress.isDead) {
+                if (dist(b.x, b.y, fortress.x, fortress.y) < fortress.size + (b.radius || 5)) {
+                    fortress.takeHit(b.damage);
+                    playHitSound();
+                    bullets.splice(i, 1);
                 }
             }
         }
@@ -727,6 +744,18 @@ function updateBullets() {
                         if (template) spawnDrops(enemies[j].x, enemies[j].y, template, 'enemy');
                         enemies.splice(j, 1);
                     }
+                }
+            }
+            if (fortress && !fortress.isDead) {
+                const dx = fortress.x - b.x;
+                const dy = fortress.y - b.y;
+                const proj = dx * sin + dy * (-cos);
+                const clamped = Math.max(0, Math.min(b.length, proj));
+                const cx = b.x + sin * clamped;
+                const cy = b.y - cos * clamped;
+                if (dist(fortress.x, fortress.y, cx, cy) < fortress.size + b.width) {
+                    const damage = b.getDamageAtDistance(clamped);
+                    fortress.takeHit(damage);
                 }
             }
         }
