@@ -7,8 +7,9 @@ let mechRef = null;
 export function setMechRef(m) { mechRef = m; }
 
 class Hook {
-    constructor(x, y, angle) {
+    constructor(x, y, angle, owner) {
         playHookSound();
+        this.owner = owner;
         this.x = x;
         this.y = y;
         this.startX = x;
@@ -27,6 +28,7 @@ class Hook {
     }
     
     update(mech) {
+        const owner = this.owner || mech;
         const cos = Math.cos(this.angle);
         const sin = Math.sin(this.angle);
         
@@ -71,10 +73,9 @@ class Hook {
                 }
             }
             // 拉拽机甲向钩爪点，但允许玩家自由移动
-            const mech = mechRef;
-            if (!mech) return;
-            const dx = this.hookX - mech.x;
-            const dy = this.hookY - mech.y;
+            if (!owner) return;
+            const dx = this.hookX - owner.x;
+            const dy = this.hookY - owner.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
             // 限制最大距离为绳索长度
@@ -82,21 +83,21 @@ class Hook {
             if (dist > maxRopeLength) {
                 // 将机甲位置限制在绳索长度范围内
                 const ratio = maxRopeLength / dist;
-                mech.x = this.hookX - dx * ratio;
-                mech.y = this.hookY - dy * ratio;
+                owner.x = this.hookX - dx * ratio;
+                owner.y = this.hookY - dy * ratio;
                 // 给一点弹性缓冲
-                mech.velocityX *= 0.5;
-                mech.velocityY *= 0.5;
+                owner.velocityX *= 0.5;
+                owner.velocityY *= 0.5;
             }
             
             // 保持拉拽力让绳索绷紧
             if (dist > maxRopeLength * 0.4) {
                 const pullSpeed = 35;
-                mech.velocityX += (dx / dist) * pullSpeed * 0.5;
-                mech.velocityY += (dy / dist) * pullSpeed * 0.5;
+                owner.velocityX += (dx / dist) * pullSpeed * 0.5;
+                owner.velocityY += (dy / dist) * pullSpeed * 0.5;
                 
                 // 立体机动：被拉拽时持续播放压缩空气喷射
-                this.spawnGasParticles(mech, dx, dy, dist);
+                this.spawnGasParticles(owner, dx, dy, dist);
                 this.boostTimer--;
                 if (this.boostTimer <= 0) {
                     playHookBoostSound();
@@ -166,17 +167,17 @@ class Hook {
     draw() {
         if (this.state === 'done') return;
         
-        const mech = mechRef;
-        if (!mech) return;
+        const owner = this.owner || mechRef;
+        if (!owner) return;
         
         // 使用当前机甲角度计算枪口位置（实时更新）
-        const totalAngle = mech.bodyAngle + mech.upperAngle + mech.weaponAngle;
+        const totalAngle = owner.bodyAngle + owner.upperAngle + owner.weaponAngle;
         const cos = Math.cos(totalAngle);
         const sin = Math.sin(totalAngle);
         
         // 绳索起点始终跟随机甲当前枪口位置
-        const muzzleX = mech.x + sin * mech.currentWeapon.barrelLength - cameraX;
-        const muzzleY = mech.y - cos * mech.currentWeapon.barrelLength - cameraY;
+        const muzzleX = owner.x + sin * owner.currentWeapon.barrelLength - cameraX;
+        const muzzleY = owner.y - cos * owner.currentWeapon.barrelLength - cameraY;
         
         // 计算当前钩爪位置（固定在世界坐标）
         const currentHookX = this.hookX - cameraX;

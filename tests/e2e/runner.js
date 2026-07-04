@@ -321,16 +321,30 @@ async function runTests() {
         }
         log('✓ 控制台无严重异常');
 
-        // 测试 12：格纳库可进入
-        await client.evaluate(`showMainMenu(); showHangar()`);
+        // 测试 12：本地双人模式可进入并创建两台机甲
+        await client.evaluate(`showMainMenu(); showMultiplayerLevelSelect()`);
         await sleep(200);
-        const hangarVisible = await client.evaluate(`
-            document.getElementById('hangar').style.display !== 'none'
+        const multiGridVisible = await client.evaluate(`
+            document.getElementById('levelSelect').style.display !== 'none'
         `);
-        assertTrue(hangarVisible.result.value, '格纳库界面显示');
-        log('✓ 格纳库可进入');
+        assertTrue(multiGridVisible.result.value, '双人关卡选择界面显示');
+        await client.evaluate(`document.querySelector('.level-card').click()`);
+        await sleep(800);
+        const multiMechCount = await client.evaluate(`players.length`);
+        assertEq(multiMechCount.result.value, 2, '双人模式应有两台机甲');
+        log('✓ 本地双人模式可进入并有两台机甲');
 
-        // 测试 13：杂兵编辑器可进入（仅在大厅）
+        // 测试 13：双人模式控制台无严重错误
+        const multiErrors = client.exceptions.filter(e =>
+            e && e.exception && e.exception.description &&
+            !e.exception.description.includes('AudioContext')
+        );
+        if (multiErrors.length > 0) {
+            throw new Error(`双人模式出现严重 JS 错误: ${multiErrors[0].exception.description}`);
+        }
+        log('✓ 控制台无严重异常');
+
+        // 测试 14：杂兵编辑器可进入（仅在大厅）
         await client.evaluate(`showMainMenu(); showEnemyEditor()`);
         await sleep(200);
         const enemyEditorVisible = await client.evaluate(`
@@ -339,7 +353,7 @@ async function runTests() {
         assertTrue(enemyEditorVisible.result.value, '杂兵编辑器界面显示');
         log('✓ 杂兵编辑器可进入');
 
-        // 测试 14：关卡编辑器可进入
+        // 测试 15：关卡编辑器可进入
         await client.evaluate(`showMainMenu(); showLevelEditor()`);
         await sleep(200);
         const levelEditorVisible = await client.evaluate(`

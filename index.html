@@ -11,6 +11,7 @@
     <div id="mainMenu">
         <h1>Binding of Mech</h1>
         <button class="menu-btn" onclick="showLevelSelect()">开始任务</button>
+        <button class="menu-btn" onclick="showMultiplayerLevelSelect()">本地双人</button>
         <button class="menu-btn" onclick="showHangar()">格纳库</button>
         <button class="menu-btn" onclick="showWeaponEditor()">武器工坊</button>
         <button class="menu-btn" onclick="showEnemyEditor()">杂兵编辑器</button>
@@ -81,16 +82,12 @@
     <div id="gameContainer" style="display:none;">
         <div id="info">
             <h3>操作说明</h3>
-            <p><span class="key">W</span><span class="key">S</span> - 前进/后退</p>
-            <p><span class="key">A</span><span class="key">D</span> - 左右侧移</p>
-            <p><span class="key">Q</span><span class="key">E</span> - 机甲转向</p>
-            <p><span class="key">←</span><span class="key">→</span> - 武器转向</p>
-            <p><span class="key">空格</span> - 射击/近战</p>
-            <p><span class="key">1-5</span> - 切换武器</p>
-            <p><span class="key">F</span> - 钩爪</p>
-            <p><span class="key">Shift</span> + 方向 - 冲刺</p>
-            <p><span class="key">E</span> - 在撤离点撤离</p>
-            <p><span class="key">Esc</span> - 退出任务</p>
+            <p><strong>P1:</strong> <span class="key">W</span><span class="key">S</span> 前进/后退 <span class="key">A</span><span class="key">D</span> 左右侧移</p>
+            <p><span class="key">Q</span><span class="key">E</span> 机甲转向 <span class="key">←</span><span class="key">→</span> 武器转向</p>
+            <p><span class="key">空格</span> 射击/近战 <span class="key">1-5</span> 切换武器 <span class="key">F</span> 钩爪 <span class="key">Shift</span> 冲刺</p>
+            <p><strong>P2:</strong> <span class="key">↑</span><span class="key">↓</span><span class="key">←</span><span class="key">→</span> 移动/转向 <span class="key">O</span><span class="key">P</span> 机甲转向</p>
+            <p><span class="key">Enter</span> 射击 <span class="key">L</span> 钩爪 <span class="key">7-9,0,-</span> 切换武器</p>
+            <p><span class="key">E</span> 撤离 <span class="key">R</span> 修理包 <span class="key">Esc</span> 退出任务</p>
         </div>
         <div id="gameHUD">
             <div class="hud-line">金币: <span id="hudMoney">0</span></div>

@@ -7,7 +7,23 @@ import { createFlame, createSpark } from './Particle.js';
 
 // mech 由主模块在创建敌人后设置
 let mechRef = null;
+let playersRef = null;
 export function setMechRef(m) { mechRef = m; }
+export function setPlayersRef(arr) { playersRef = arr; }
+
+function getTarget() {
+    if (playersRef && playersRef.length > 0) {
+        let nearest = null;
+        let minD = Infinity;
+        for (const p of playersRef) {
+            if (p.isDead || p.health <= 0) continue;
+            const d = Math.sqrt((p.x - this.x) ** 2 + (p.y - this.y) ** 2);
+            if (d < minD) { minD = d; nearest = p; }
+        }
+        return nearest;
+    }
+    return mechRef;
+}
 
 const DRAWERS = {
     scout(ctx, size) {
@@ -137,7 +153,7 @@ class Enemy extends Entity {
 
         if (this.shootCooldown > 0) this.shootCooldown--;
 
-        const mech = mechRef;
+        const mech = getTarget.call(this);
         if (!mech) return;
         const dx = mech.x - this.x;
         const dy = mech.y - this.y;

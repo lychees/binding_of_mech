@@ -28,7 +28,13 @@ export function initUI() {
     window.showLevelSelect = () => {
         document.getElementById('mainMenu').style.display = 'none';
         document.getElementById('levelSelect').style.display = 'flex';
-        renderLevelGrid();
+        renderLevelGrid(false);
+    };
+
+    window.showMultiplayerLevelSelect = () => {
+        document.getElementById('mainMenu').style.display = 'none';
+        document.getElementById('levelSelect').style.display = 'flex';
+        renderLevelGrid(true);
     };
 
     window.showHangar = () => {
@@ -59,7 +65,7 @@ export function initUI() {
 }
 
 // ========== 关卡选择 ==========
-function renderLevelGrid() {
+function renderLevelGrid(multiplayer = false) {
     const grid = document.getElementById('levelGrid');
     grid.innerHTML = '';
     LEVELS.forEach(level => {
@@ -67,12 +73,12 @@ function renderLevelGrid() {
         const card = document.createElement('div');
         card.className = 'level-card' + (unlocked ? '' : ' locked');
         card.innerHTML = `
-            <h3>第${level.id}关</h3>
+            <h3>第${level.id}关${multiplayer ? ' (双人)' : ''}</h3>
             <p>${level.name}</p>
             <p>敌人: ${level.enemyCount}</p>
             <p class="reward">奖励: ${level.reward}金币</p>
         `;
-        if (unlocked) card.onclick = () => startLevel(level, playerSave);
+        if (unlocked) card.onclick = () => startLevel(level, playerSave, multiplayer);
         grid.appendChild(card);
     });
 }

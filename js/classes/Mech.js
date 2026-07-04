@@ -178,7 +178,7 @@ class Mech extends Entity {
         this.alreadyExploded = false;
     }
 
-    update() {
+    update(input = null) {
         if (this.isDead) {
             for (let i = this.jetParticles.length - 1; i >= 0; i--) {
                 this.jetParticles[i].update();
@@ -186,6 +186,7 @@ class Mech extends Entity {
             }
             return;
         }
+        this.input = input;
         this.handleWeaponSwitch();
         if (this.fireCooldown > 0) this.fireCooldown--;
         this.updateHeat();
@@ -197,7 +198,29 @@ class Mech extends Entity {
         this.updateStatusEffects();
     }
 
+    getInput() {
+        return this.input || {
+            forward: keys['w'] || keys['W'],
+            backward: keys['s'] || keys['S'],
+            left: keys['a'] || keys['A'],
+            right: keys['d'] || keys['D'],
+            turnLeft: keys['q'] || keys['Q'],
+            turnRight: keys['e'] || keys['E'],
+            shoot: keys[' '],
+            hook: keys['f'] || keys['F'],
+            dash: keys['Shift'],
+            weaponSwitch: 0
+        };
+    }
+
     handleWeaponSwitch() {
+        const input = this.getInput();
+        const idx = input.weaponSwitch ? input.weaponSwitch - 1 : -1;
+        if (idx >= 0 && idx < this.weaponKeys.length && this.weaponKeys[idx]) {
+            this.currentWeapon = this.weaponList[idx];
+            this.isSwinging = false;
+            return;
+        }
         for (let i = 0; i < this.weaponKeys.length; i++) {
             if (keys[this.weaponKeys[i]]) {
                 this.currentWeapon = this.weaponList[i];
@@ -217,7 +240,7 @@ class Mech extends Entity {
                 this.isOverheated = false;
                 this.heatLevel = 0;
             }
-        } else if (!keys[' ']) {
+        } else if (!this.getInput().shoot) {
             this.heatLevel = Math.max(0, this.heatLevel - this.currentWeapon.heatDecay);
         }
     }
@@ -276,12 +299,13 @@ class Mech extends Entity {
     }
 
     updateMovement() {
-        let moveForward = keys['w'] || keys['W'] ? 1 : keys['s'] || keys['S'] ? -1 : 0;
-        let moveSide = keys['a'] || keys['A'] ? -1 : keys['d'] || keys['D'] ? 1 : 0;
+        const input = this.getInput();
+        let moveForward = input.forward ? 1 : input.backward ? -1 : 0;
+        let moveSide = input.left ? -1 : input.right ? 1 : 0;
 
-        if (keys['Shift'] && !this.isDashing && this.dashCooldown <= 0) {
-            let dashX = keys['a'] || keys['A'] ? -1 : keys['d'] || keys['D'] ? 1 : 0;
-            let dashY = keys['w'] || keys['W'] ? -1 : keys['s'] || keys['S'] ? 1 : 0;
+        if (input.dash && !this.isDashing && this.dashCooldown <= 0) {
+            let dashX = input.left ? -1 : input.right ? 1 : 0;
+            let dashY = input.forward ? -1 : input.backward ? 1 : 0;
             if (dashX !== 0 || dashY !== 0) {
                 const n = normalize(dashX, dashY);
                 this.isDashing = true;
@@ -295,12 +319,12 @@ class Mech extends Entity {
         const cos = Math.cos(this.bodyAngle);
         const sin = Math.sin(this.bodyAngle);
 
-        const isHooked = hooks.some(h => h.state === 'hooked');
+        const isHooked = hooks.some(h => h.state === 'hooked' && h.owner === this);
         let hookSpeedBoost = isHooked ? 6.0 : 1;
         let hookAccelerationBoost = isHooked ? 3.0 : 1;
         if (isHooked) {
-            if (keys['w'] || keys['W']) { hookSpeedBoost *= 2.5; hookAccelerationBoost *= 1.8; }
-            else if (keys['s'] || keys['S']) { hookSpeedBoost *= 0.4; hookAccelerationBoost *= 0.6; }
+            if (input.forward) { hookSpeedBoost *= 2.5; hookAccelerationBoost *= 1.8; }
+            else if (input.backward) { hookSpeedBoost *= 0.4; hookAccelerationBoost *= 0.6; }
         }
         const effectiveMaxSpeed = this.maxSpeed * hookSpeedBoost;
         const effectiveAcceleration = Math.min(0.8, this.acceleration * hookAccelerationBoost);
@@ -339,19 +363,20 @@ class Mech extends Entity {
     }
 
     updateTurning() {
+        const input = this.getInput();
         this.turnVelocity = this.applyTurn(this.turnVelocity,
-            keys['e'] || keys['E'] ? this.maxTurnSpeed : keys['q'] || keys['Q'] ? -this.maxTurnSpeed : 0,
+            input.turnRight ? this.maxTurnSpeed : input.turnLeft ? -this.maxTurnSpeed : 0,
             this.turnDeceleration, 0.15);
         this.bodyAngle += this.turnVelocity;
 
         this.upperTurnVelocity = this.applyTurn(this.upperTurnVelocity,
-            keys['ArrowLeft'] ? -this.maxUpperTurnSpeed : keys['ArrowRight'] ? this.maxUpperTurnSpeed : 0,
+            input.right ? -this.maxUpperTurnSpeed : input.left ? this.maxUpperTurnSpeed : 0,
             this.upperTurnDeceleration, 0.12);
         this.upperAngle += this.upperTurnVelocity;
         this.upperAngle = clamp(this.upperAngle, -Math.PI * 0.8, Math.PI * 0.8);
 
         this.weaponTurnVelocity = this.applyTurn(this.weaponTurnVelocity,
-            keys['Shift'] && keys['ArrowLeft'] ? -this.maxWeaponTurnSpeed : keys['Shift'] && keys['ArrowRight'] ? this.maxWeaponTurnSpeed : 0,
+            input.dash && input.left ? -this.maxWeaponTurnSpeed : input.dash && input.right ? this.maxWeaponTurnSpeed : 0,
             this.weaponTurnDeceleration, 0.1);
         this.weaponAngle += this.weaponTurnVelocity;
     }
@@ -563,7 +588,7 @@ class Mech extends Entity {
     }
 
     shoot() {
-        if (this.fireCooldown > 0) return;
+        if (this.isDead || this.fireCooldown > 0) return;
         const w = this.currentWeapon;
 
         if (w.drawType === 'vulcan') {
@@ -590,6 +615,7 @@ class Mech extends Entity {
                     this.y - Math.cos(totalAngle) * 20,
                     '#00ff88', 10, 4
                 ));
+                this.damageEnemiesInArc(w);
             }
             return;
         }
@@ -625,9 +651,32 @@ class Mech extends Entity {
         this.velocityY += cos * w.recoil;
     }
 
+    damageEnemiesInArc(w) {
+        const startAngle = this.bodyAngle + this.upperAngle + this.weaponAngle - w.swingRange / 2;
+        for (const enemy of window.enemies || []) {
+            if (enemy.isDead || enemy.health <= 0) continue;
+            const dx = enemy.x - this.x;
+            const dy = enemy.y - this.y;
+            const d = Math.sqrt(dx * dx + dy * dy);
+            if (d > w.barrelLength + 35) continue;
+            const angleTo = Math.atan2(dx, -dy);
+            let diff = angleTo - startAngle;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            if (diff >= 0 && diff <= w.swingRange) {
+                enemy.takeHit(w.damage);
+                if (enemy.health <= 0) {
+                    const template = ENEMY_TEMPLATES[enemy.templateKey];
+                    if (template) window.spawnDrops?.(enemy.x, enemy.y, template, 'enemy');
+                    window.enemies.splice(window.enemies.indexOf(enemy), 1);
+                }
+            }
+        }
+    }
+
     fireHook() {
         for (const h of hooks) {
-            if (h.state !== 'done') {
+            if (h.state !== 'done' && h.owner === this) {
                 h.state = 'retracting';
                 return;
             }
@@ -638,7 +687,8 @@ class Mech extends Entity {
         hooks.push(new Hook(
             this.x + sin * this.currentWeapon.barrelLength,
             this.y - cos * this.currentWeapon.barrelLength,
-            totalAngle
+            totalAngle,
+            this
         ));
     }
 }

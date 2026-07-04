@@ -15,6 +15,7 @@ import { ALL_MODULES, calculateMechBuild } from './modules.js';
 import { rollBlueprintDrops } from './blueprints.js';
 import { dist, normalize } from './utils.js';
 import { getPlayerSave, setPlayerSave, getWeaponEditorData } from './ui.js';
+import { updateInputs, p1Input, p2Input, resetInputs } from './input.js';
 
 let _currentPlayerSave = null;
 
@@ -32,6 +33,7 @@ window.hooks = hooks;
 window.drops = drops;
 window.inventory = inventory;
 
+let players = [];
 let mech;
 let pilot = null;
 let isPilotActive = false;
@@ -47,6 +49,7 @@ let evacuationPoint = null;
 let evacuationHoldTime = 0;
 const EVACUATION_HOLD_REQUIRED = 90;
 let evacuationPromptShown = false;
+let isMultiplayer = false;
 
 export function getMech() { return mech; }
 export function isGameRunning() { return gameRunning; }
@@ -60,7 +63,7 @@ export function stopGame() {
     stopBGM();
 }
 
-export function startLevel(level, playerSave) {
+export function startLevel(level, playerSave, multiplayer = false) {
     _currentPlayerSave = playerSave;
     setPlayerSave(playerSave);
     window.__startLevelCalled = true;
@@ -69,6 +72,7 @@ export function startLevel(level, playerSave) {
     missionMoney = 0;
     missionExp = 0;
     missionMaterials = 0;
+    isMultiplayer = multiplayer;
 
     document.getElementById('mainMenu').style.display = 'none';
     document.getElementById('levelSelect').style.display = 'none';
@@ -82,10 +86,12 @@ export function startLevel(level, playerSave) {
     enemies.length = 0;
     drops.length = 0;
     floatingTexts.length = 0;
+    players = [];
     evacuationPoint = null;
     evacuationHoldTime = 0;
     evacuationPromptShown = false;
 
+    resetInputs();
     document.getElementById('missionResult').style.display = 'none';
 
     generateObstacles();
@@ -100,9 +106,49 @@ export function startLevel(level, playerSave) {
     }
 
     const build = calculateMechBuild(playerSave.mechBuild);
-    mech = new Mech(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+    const spawnX = WORLD_WIDTH / 2;
+    const spawnY = WORLD_HEIGHT / 2;
+    mech = createPlayerMech(spawnX - (multiplayer ? 60 : 0), spawnY, build, playerSave, 'p1');
+    players.push(mech);
     window.mech = mech;
-    Object.assign(mech, {
+
+    if (multiplayer) {
+        const mech2 = createPlayerMech(spawnX + 60, spawnY, build, playerSave, 'p2');
+        players.push(mech2);
+        window.mech2 = mech2;
+    }
+
+    pilot = null;
+    isPilotActive = false;
+
+    import('./classes/Enemy.js').then(m => {
+        m.setMechRef(mech);
+        m.setPlayersRef(players);
+    });
+    import('./classes/Hook.js').then(m => m.setMechRef(mech));
+
+    window.players = players;
+    window.spawnDrops = spawnDrops;
+
+    window.mouseX = canvas.width / 2;
+    window.mouseY = canvas.height / 2;
+    canvas.onmousemove = e => {
+        const rect = canvas.getBoundingClientRect();
+        window.mouseX = e.clientX - rect.left;
+        window.mouseY = e.clientY - rect.top;
+    };
+
+    initAudio();
+    playBGM();
+
+    gameRunning = true;
+    gameLoop();
+}
+
+function createPlayerMech(x, y, build, playerSave, tag) {
+    const m = new Mech(x, y);
+    m.playerTag = tag;
+    Object.assign(m, {
         maxSpeed: build.maxSpeed,
         dashMaxCooldown: build.dashCooldown,
         maxHealth: build.maxHealth,
@@ -121,31 +167,11 @@ export function startLevel(level, playerSave) {
         repairRate: build.repairRate,
         isDead: false
     });
-
-    pilot = null;
-    isPilotActive = false;
-
-    import('./classes/Enemy.js').then(m => m.setMechRef(mech));
-    import('./classes/Hook.js').then(m => m.setMechRef(mech));
-
-    setupWeapons(build, playerSave);
-
-    window.mouseX = canvas.width / 2;
-    window.mouseY = canvas.height / 2;
-    canvas.onmousemove = e => {
-        const rect = canvas.getBoundingClientRect();
-        window.mouseX = e.clientX - rect.left;
-        window.mouseY = e.clientY - rect.top;
-    };
-
-    initAudio();
-    playBGM();
-
-    gameRunning = true;
-    gameLoop();
+    setupWeapons(build, playerSave, m);
+    return m;
 }
 
-function setupWeapons(build, playerSave) {
+function setupWeapons(build, playerSave, targetMech) {
     const weaponEditorData = getWeaponEditorData();
     const weaponList = [];
     const equipped = [];
@@ -182,9 +208,9 @@ function setupWeapons(build, playerSave) {
     });
     if (weaponList.length === 0) weaponList.push(weaponEditorData.VULCAN);
 
-    mech.weaponList = weaponList;
-    mech.currentWeapon = weaponList[0];
-    mech.weaponKeys = ['1', '2', '3', '4', '5'].slice(0, weaponList.length);
+    targetMech.weaponList = weaponList;
+    targetMech.currentWeapon = weaponList[0];
+    targetMech.weaponKeys = ['1', '2', '3', '4', '5'].slice(0, weaponList.length);
 }
 
 function spawnFortress() {
@@ -268,11 +294,12 @@ function generateEnemiesForLevel(level) {
 
 function gameLoop() {
     if (!gameRunning) return;
+    updateInputs();
 
     ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const cameraTarget = isPilotActive && pilot && !pilot.isDead ? pilot : mech;
+    const cameraTarget = isPilotActive && pilot && !pilot.isDead ? pilot : getCameraCenter();
     setCamera(
         Math.max(0, Math.min(WORLD_WIDTH - canvas.width, cameraTarget.x - canvas.width / 2)),
         Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, cameraTarget.y - canvas.height / 2))
@@ -305,42 +332,61 @@ function gameLoop() {
     }
 
     if (!isPilotActive) {
-        for (const enemy of enemies) mech.resolveCollision(enemy);
+        for (const p of players) {
+            for (const enemy of enemies) p.resolveCollision(enemy);
+        }
         if (keys['x'] || keys['X']) {
             ejectPilot();
             keys['x'] = false;
             keys['X'] = false;
         }
-        if (mech.isDead) {
-            destroyMech();
+        const alivePlayers = players.filter(p => !p.isDead);
+        if (alivePlayers.length === 0) {
+            for (const p of players) destroyMech(p);
             gameRunning = false;
             showMissionResult(false);
             return;
         }
     } else {
-        if (mech.isDead) {
-            destroyMech();
+        for (const p of players) {
+            if (p.isDead) destroyMech(p);
         }
     }
 
-    mech.update();
-    mech.draw();
+    for (const p of players) {
+        if (p.isDead) continue;
+        p.update(p === players[0] ? p1Input : p2Input);
+        p.draw();
+    }
+
+    // 玩家之间碰撞
+    for (let i = 0; i < players.length; i++) {
+        for (let j = i + 1; j < players.length; j++) {
+            if (!players[i].isDead && !players[j].isDead) {
+                players[i].resolveCollision(players[j]);
+            }
+        }
+    }
 
     if (isPilotActive && pilot) {
         pilot.update();
         pilot.draw();
-        const distToMech = dist(pilot.x, pilot.y, mech.x, mech.y);
-        if (distToMech < 40 && (keys['g'] || keys['G'])) {
-            if (mech.health <= 0) mech.health = mech.maxHealth * 0.3;
-            mech.isDead = false;
-            mech.alreadyExploded = false;
-            mech.isPilotEjected = false;
-            mech.x = pilot.x;
-            mech.y = pilot.y;
-            isPilotActive = false;
-            pilot = null;
-            keys['g'] = false;
-            keys['G'] = false;
+        for (const p of players) {
+            if (p.isDead) continue;
+            const distToMech = dist(pilot.x, pilot.y, p.x, p.y);
+            if (distToMech < 40 && (keys['g'] || keys['G'])) {
+                if (p.health <= 0) p.health = p.maxHealth * 0.3;
+                p.isDead = false;
+                p.alreadyExploded = false;
+                p.isPilotEjected = false;
+                p.x = pilot.x;
+                p.y = pilot.y;
+                isPilotActive = false;
+                pilot = null;
+                keys['g'] = false;
+                keys['G'] = false;
+                break;
+            }
         }
         if (pilot?.isDead) {
             gameRunning = false;
@@ -364,7 +410,7 @@ function gameLoop() {
     }
 
     for (let i = hooks.length - 1; i >= 0; i--) {
-        hooks[i].update(mech);
+        hooks[i].update(hooks[i].owner);
         hooks[i].draw();
         if (hooks[i].state === 'done') hooks.splice(i, 1);
     }
@@ -384,6 +430,15 @@ function gameLoop() {
     }
 
     animationId = requestAnimationFrame(gameLoop);
+}
+
+function getCameraCenter() {
+    if (players.length === 0) return { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
+    const alive = players.filter(p => !p.isDead);
+    const list = alive.length > 0 ? alive : players;
+    const x = list.reduce((s, p) => s + p.x, 0) / list.length;
+    const y = list.reduce((s, p) => s + p.y, 0) / list.length;
+    return { x, y };
 }
 
 function spawnDrops(x, y, template, source) {
@@ -432,18 +487,18 @@ function ejectPilot() {
     particles.push(...createSpark(mech.x, mech.y, '#ffcc00', 10, 4));
 }
 
-function destroyMech() {
-    if (!mech) return;
-    if (mech.alreadyExploded) return;
-    mech.alreadyExploded = true;
+function destroyMech(target) {
+    if (!target) return;
+    if (target.alreadyExploded) return;
+    target.alreadyExploded = true;
     playExplosionSound('large');
-    particles.push(...createSpark(mech.x, mech.y, '#ff4444', 60, 7));
-    particles.push(...createSpark(mech.x, mech.y, '#ff8800', 40, 5));
-    particles.push(...createSpark(mech.x, mech.y, '#ffcc00', 30, 4));
-    mech.health = 0;
-    mech.isDead = true;
-    mech.velocityX = 0;
-    mech.velocityY = 0;
+    particles.push(...createSpark(target.x, target.y, '#ff4444', 60, 7));
+    particles.push(...createSpark(target.x, target.y, '#ff8800', 40, 5));
+    particles.push(...createSpark(target.x, target.y, '#ffcc00', 30, 4));
+    target.health = 0;
+    target.isDead = true;
+    target.velocityX = 0;
+    target.velocityY = 0;
 }
 
 function updateBullets() {
@@ -471,7 +526,9 @@ function updateBullets() {
 
         if (bullets[i] instanceof Bullet && bullets[i].isEnemyBullet) {
             const targets = [];
-            if (mech && mech.health > 0) targets.push({ t: mech, r: 20 });
+            for (const p of players) {
+                if (p.health > 0) targets.push({ t: p, r: 20 });
+            }
             if (isPilotActive && pilot && !pilot.isDead) targets.push({ t: pilot, r: pilot.size + 4 });
 
             let hit = false;
@@ -482,11 +539,11 @@ function updateBullets() {
                     particles.push(...createSpark(t.x, t.y, '#00d4ff', 5, 4));
                     hit = true;
 
-                    if (t === mech && mech.health <= 0) {
-                        mech.health = 0;
-                        mech.isDead = true;
-                        destroyMech();
-                        if (!isPilotActive) {
+                    if (players.includes(t) && t.health <= 0) {
+                        t.health = 0;
+                        t.isDead = true;
+                        destroyMech(t);
+                        if (!isPilotActive && players.every(p => p.isDead)) {
                             gameRunning = false;
                             showMissionResult(false);
                             return;
@@ -603,12 +660,14 @@ function drawObstacles() {
 
 function drawWeaponUI() {
     if (isPilotActive) return;
+    if (players.length === 0) return;
+    const active = players.find(p => !p.isDead) || players[0];
     const startX = canvas.width - 150;
     const startY = 20;
     const itemHeight = 35;
-    for (let i = 0; i < mech.weaponList.length; i++) {
-        const w = mech.weaponList[i];
-        const isActive = w === mech.currentWeapon;
+    for (let i = 0; i < active.weaponList.length; i++) {
+        const w = active.weaponList[i];
+        const isActive = w === active.currentWeapon;
         const y = startY + i * itemHeight;
         ctx.fillStyle = isActive ? 'rgba(0, 200, 255, 0.3)' : 'rgba(50, 50, 50, 0.5)';
         ctx.fillRect(startX, y, 130, 30);
@@ -632,39 +691,53 @@ function updateHUD() {
     const hudEvac = document.getElementById('hudEvac');
     if (hudEvac) {
         if (evacuationPoint?.active) {
-            const target = isPilotActive && pilot && !pilot.isDead ? pilot : mech;
-            const d = dist(target.x, target.y, evacuationPoint.x, evacuationPoint.y);
-            hudEvac.textContent = d < evacuationPoint.radius ? '可撤离 (长按 E)' : '已标记';
-            hudEvac.style.color = d < evacuationPoint.radius ? '#00ff88' : '#00d4ff';
+            const targets = isPilotActive && pilot && !pilot.isDead ? [pilot] : players.filter(p => !p.isDead);
+            const closest = targets.reduce((best, t) => {
+                const d = dist(t.x, t.y, evacuationPoint.x, evacuationPoint.y);
+                return d < best.d ? { t, d } : best;
+            }, { d: Infinity });
+            hudEvac.textContent = closest.d < evacuationPoint.radius ? '可撤离 (长按 E)' : '已标记';
+            hudEvac.style.color = closest.d < evacuationPoint.radius ? '#00ff88' : '#00d4ff';
         } else {
             hudEvac.textContent = '未激活';
             hudEvac.style.color = '#888';
         }
     }
 
+    drawPlayerHealthBars();
+}
+
+function drawPlayerHealthBars() {
     const barWidth = 200;
     const barHeight = 16;
     const barX = 10;
-    const barY = 10;
-    const target = isPilotActive && pilot ? pilot : mech;
-    const healthRatio = target.health / target.maxHealth;
+    const gap = 24;
 
-    ctx.fillStyle = 'rgba(50, 50, 50, 0.8)';
-    ctx.fillRect(barX, barY, barWidth, barHeight);
-    ctx.fillStyle = healthRatio > 0.6 ? '#00ff88' : healthRatio > 0.3 ? '#ffaa00' : '#ff4444';
-    ctx.fillRect(barX, barY, barWidth * healthRatio, barHeight);
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(barX, barY, barWidth, barHeight);
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 12px monospace';
-    ctx.fillText(Math.ceil(target.health) + ' / ' + Math.ceil(target.maxHealth), barX + barWidth / 2 - 30, barY + 12);
+    const targets = isPilotActive && pilot ? [pilot] : players.filter(p => !p.isDead);
+    if (targets.length === 0) targets.push(...players);
 
-    if (mech.armor > 0) {
-        ctx.fillStyle = '#00d4ff';
-        ctx.font = '11px monospace';
-        ctx.fillText('装甲: ' + Math.floor(mech.armor * 100) + '%', barX, barY + 30);
-    }
+    targets.forEach((target, idx) => {
+        const barY = 10 + idx * (barHeight + gap + 8);
+        const healthRatio = target.health / target.maxHealth;
+
+        ctx.fillStyle = 'rgba(50, 50, 50, 0.8)';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        ctx.fillStyle = healthRatio > 0.6 ? '#00ff88' : healthRatio > 0.3 ? '#ffaa00' : '#ff4444';
+        ctx.fillRect(barX, barY, barWidth * healthRatio, barHeight);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(barX, barY, barWidth, barHeight);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px monospace';
+        const tag = target.playerTag ? `P${target.playerTag === 'p1' ? '1' : '2'}` : 'Pilot';
+        ctx.fillText(`${tag}: ${Math.ceil(target.health)} / ${Math.ceil(target.maxHealth)}`, barX + barWidth / 2 - 45, barY + 12);
+
+        if (target.armor > 0) {
+            ctx.fillStyle = '#00d4ff';
+            ctx.font = '11px monospace';
+            ctx.fillText('装甲: ' + Math.floor(target.armor * 100) + '%', barX, barY + 28);
+        }
+    });
 }
 
 function updateDrops() {
@@ -713,8 +786,15 @@ function updateDrops() {
         }
         ctx.globalAlpha = 1;
 
-        const pickupTarget = isPilotActive && pilot ? pilot : mech;
-        if (dist(pickupTarget.x, pickupTarget.y, d.x, d.y) < 30) {
+        const pickupTargets = isPilotActive && pilot ? [pilot] : players.filter(p => !p.isDead);
+        let picked = false;
+        for (const t of pickupTargets) {
+            if (dist(t.x, t.y, d.x, d.y) < 30) {
+                picked = true;
+                break;
+            }
+        }
+        if (picked) {
             if (d.type === 'money') {
                 playPickupSound();
                 missionMoney += d.amount;
@@ -802,13 +882,14 @@ function updateEvacuationPoint() {
 
 function checkEvacuation() {
     if (!evacuationPoint?.active) return;
-    const target = isPilotActive && pilot && !pilot.isDead ? pilot : mech;
-    const d = dist(target.x, target.y, evacuationPoint.x, evacuationPoint.y);
-    if (d < evacuationPoint.radius) {
+    const targets = isPilotActive && pilot && !pilot.isDead ? [pilot] : players.filter(p => !p.isDead);
+    const inRange = targets.some(t => dist(t.x, t.y, evacuationPoint.x, evacuationPoint.y) < evacuationPoint.radius);
+    if (inRange) {
         showEvacuationPrompt(true);
         if (keys['e'] || keys['E']) {
             evacuationHoldTime++;
-            drawEvacuationProgress(target.x, target.y);
+            const target = targets.find(t => dist(t.x, t.y, evacuationPoint.x, evacuationPoint.y) < evacuationPoint.radius);
+            if (target) drawEvacuationProgress(target.x, target.y);
             if (evacuationHoldTime >= EVACUATION_HOLD_REQUIRED) evacuateMission();
         } else {
             evacuationHoldTime = 0;
@@ -867,50 +948,45 @@ function showEvacuationPrompt(show) {
 function drawMinimap() {
     const mapSize = 150;
     const mapX = canvas.width - mapSize - 10;
-    const mapY = canvas.height - mapSize - 10;
+    const mapY = 10;
     const scaleX = mapSize / WORLD_WIDTH;
     const scaleY = mapSize / WORLD_HEIGHT;
 
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
     ctx.fillRect(mapX, mapY, mapSize, mapSize);
-    ctx.strokeStyle = '#555';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(mapX, mapY, mapSize, mapSize);
 
     for (const obs of obstacles) {
-        ctx.fillStyle = '#666';
+        ctx.fillStyle = obs.isTree ? '#2a5a2a' : '#555';
         ctx.fillRect(mapX + obs.x * scaleX, mapY + obs.y * scaleY, Math.max(2, obs.width * scaleX), Math.max(2, obs.height * scaleY));
     }
+
+    for (const e of enemies) {
+        ctx.fillStyle = e.color;
+        ctx.fillRect(mapX + e.x * scaleX - 1, mapY + e.y * scaleY - 1, 3, 3);
+    }
+
+    for (const p of players) {
+        ctx.fillStyle = p.playerTag === 'p1' ? '#00d4ff' : '#ffaa44';
+        ctx.beginPath();
+        ctx.arc(mapX + p.x * scaleX, mapY + p.y * scaleY, 3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
     if (evacuationPoint?.active) {
-        ctx.fillStyle = '#00d4ff';
+        ctx.fillStyle = 'rgba(0, 212, 255, 0.5)';
         ctx.beginPath();
         ctx.arc(mapX + evacuationPoint.x * scaleX, mapY + evacuationPoint.y * scaleY, 4, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#00d4ff';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(mapX + evacuationPoint.x * scaleX, mapY + evacuationPoint.y * scaleY, 7, 0, Math.PI * 2);
-        ctx.stroke();
     }
-    for (const enemy of enemies) {
-        ctx.fillStyle = '#ff4444';
-        ctx.beginPath();
-        ctx.arc(mapX + enemy.x * scaleX, mapY + enemy.y * scaleY, 2, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    const minimapTarget = isPilotActive && pilot ? pilot : mech;
-    ctx.fillStyle = '#00d4ff';
-    ctx.beginPath();
-    ctx.arc(mapX + minimapTarget.x * scaleX, mapY + minimapTarget.y * scaleY, 3, 0, Math.PI * 2);
-    ctx.fill();
+
     ctx.strokeStyle = '#00d4ff';
     ctx.lineWidth = 1;
     ctx.strokeRect(mapX + cameraX * scaleX, mapY + cameraY * scaleY, canvas.width * scaleX, canvas.height * scaleY);
 }
 
 function showMissionResult(won) {
-    const blueprintDrops = won ? rollBlueprintDrops(currentLevel ? currentLevel.id : 1) : [];
     const playerSave = _currentPlayerSave || getPlayerSave();
+    const blueprintDrops = won ? rollBlueprintDrops(currentLevel ? currentLevel.id : 1) : [];
     const result = document.getElementById('missionResult');
     document.getElementById('resultTitle').textContent = won ? '任务完成' : '任务失败';
     document.getElementById('rewardMoney').textContent = missionMoney;
@@ -942,20 +1018,21 @@ document.addEventListener('keydown', (e) => {
     keys[e.key] = true;
     if (e.key === ' ') {
         e.preventDefault();
-        if (mech) mech.shoot();
+        if (mech && !isMultiplayer) mech.shoot();
     }
     if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
-        if (mech) mech.fireHook();
+        if (mech && !isMultiplayer) mech.fireHook();
     }
     if (e.key === 'Shift') e.preventDefault();
     if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
-        if (mech && inventory.repairKits > 0 && mech.health < mech.maxHealth) {
+        const repairTarget = players.find(p => !p.isDead) || mech;
+        if (repairTarget && inventory.repairKits > 0 && repairTarget.health < repairTarget.maxHealth) {
             inventory.repairKits--;
-            mech.health = Math.min(mech.maxHealth, mech.health + 30);
+            repairTarget.health = Math.min(repairTarget.maxHealth, repairTarget.health + 30);
             playRepairSound();
-            particles.push(...createSpark(mech.x, mech.y, '#00ff88', 10, 3));
+            particles.push(...createSpark(repairTarget.x, repairTarget.y, '#00ff88', 10, 3));
         }
     }
     if (e.key === 'Escape') {
