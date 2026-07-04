@@ -1,5 +1,5 @@
 // 通用粒子系统
-import { cameraX, cameraY } from '../config.js';
+import { cameraX, cameraY } from '../config.js?v=2';
 
 class Particle {
     constructor(x, y, vx, vy, color, size = 0, isGas = false) {

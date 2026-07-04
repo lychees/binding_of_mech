@@ -1,6 +1,6 @@
 import NetworkManager from './NetworkManager.js?v=2';
-import Enemy from '../classes/Enemy.js';
-import { ENEMY_TEMPLATES } from '../enemies.js';
+import Enemy from '../classes/Enemy.js?v=2';
+import { ENEMY_TEMPLATES } from '../enemies.js?v=2';
 
 let net = null;
 let isHost = false;

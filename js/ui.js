@@ -1,7 +1,7 @@
 // 格纳库、页面切换、武器工坊 UI
 import { ENEMY_TEMPLATES, LEVELS } from './enemies.js?v=2';
 import { WEAPONS } from './weapons.js?v=2';
-import { loadSave, saveGame, upgradeCost } from '../data/save.js';
+import { loadSave, saveGame, upgradeCost } from '../data/save.js?v=2';
 import { ALL_MODULES, MODULE_RARITY, calculateMechBuild, moduleUpgradeCost, moduleResearchCost, salvageModule } from './modules.js?v=2';
 import { getManufactureCost, getBlueprintResearchCost } from './blueprints.js?v=2';
 import { stopGame, startLevel } from './game.js?v=2';

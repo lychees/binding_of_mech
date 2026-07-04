@@ -1,13 +1,13 @@
-import { keys, particles, footprints, bullets, hooks, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT } from '../config.js';
-import { playShootSound } from '../audio.js';
-import { WEAPONS } from '../weapons.js';
+import { keys, particles, footprints, bullets, hooks, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT } from '../config.js?v=2';
+import { playShootSound } from '../audio.js?v=2';
+import { WEAPONS } from '../weapons.js?v=2';
 import Bullet from './Bullet.js?v=2';
 import LaserBeam from './LaserBeam.js?v=2';
 import Entity from './Entity.js?v=2';
 import Particle, { createFlame, createSpark, createJet, createSmoke } from './Particle.js?v=2';
 import Hook from './Hook.js?v=2';
-import { clamp, dist, normalize } from '../utils.js';
-import { broadcastAction } from '../net/OnlineGame.js';
+import { clamp, dist, normalize } from '../utils.js?v=2';
+import { broadcastAction } from '../net/OnlineGame.js?v=2';
 
 const WEAPON_RENDERERS = {
     vulcan(ctx, w, mech) {

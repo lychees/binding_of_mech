@@ -1,4 +1,4 @@
-import { cameraX, cameraY } from '../config.js';
+import { cameraX, cameraY } from '../config.js?v=2';
 
 class Bullet {
     constructor(x, y, angle, weapon, isEnemyBullet = false) {

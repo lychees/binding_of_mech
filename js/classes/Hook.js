@@ -1,5 +1,5 @@
-import { keys, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, particles } from '../config.js';
-import { playHookSound, playHookHitSound, playHookBoostSound } from '../audio.js';
+import { keys, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, particles } from '../config.js?v=2';
+import { playHookSound, playHookHitSound, playHookBoostSound } from '../audio.js?v=2';
 import Particle from './Particle.js?v=2';
 
 // mech 由主模块设置

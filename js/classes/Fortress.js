@@ -1,5 +1,5 @@
-import { bullets, particles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, obstacles } from '../config.js';
-import { WEAPONS } from '../weapons.js';
+import { bullets, particles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, obstacles } from '../config.js?v=2';
+import { WEAPONS } from '../weapons.js?v=2';
 import Bullet from './Bullet.js?v=2';
 import Particle from './Particle.js?v=2';
 

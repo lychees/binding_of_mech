@@ -1,5 +1,5 @@
-import { keys, bullets, particles, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT } from '../config.js';
-import { playShootSound } from '../audio.js';
+import { keys, bullets, particles, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT } from '../config.js?v=2';
+import { playShootSound } from '../audio.js?v=2';
 import Bullet from './Bullet.js?v=2';
 import Particle from './Particle.js?v=2';
 

@@ -2,7 +2,7 @@
 import { keys, bullets, particles, footprints, hooks, obstacles, enemies, drops, inventory, setCamera, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, setMechBag, setPilotBag } from './config.js?v=2';
 import { ENEMY_TEMPLATES, LEVELS } from './enemies.js?v=2';
 import { WEAPONS } from './weapons.js?v=2';
-import { addMoneyExp } from '../data/save.js';
+import { addMoneyExp } from '../data/save.js?v=2';
 import { createPilot, applyPilotToMech, applyPilotToPilotEntity, addPilotExp } from './pilots.js?v=2';
 import { recordEnemyKill } from './enemyMechs.js?v=2';
 import Mech from './classes/Mech.js?v=2';
@@ -1051,7 +1051,7 @@ function showEvacuationPrompt(show) {
 function drawMinimap() {
     const mapSize = 150;
     const mapX = canvas.width - mapSize - 10;
-    const mapY = 10;
+    const mapY = canvas.height - mapSize - 10;
     const scaleX = mapSize / WORLD_WIDTH;
     const scaleY = mapSize / WORLD_HEIGHT;
 
