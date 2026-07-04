@@ -5,7 +5,8 @@ export function loadSave() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (raw) {
         try {
-            return JSON.parse(raw);
+            const data = JSON.parse(raw);
+            return migrateSave(data);
         } catch (e) {
             console.error('存档读取失败', e);
         }
@@ -17,12 +18,61 @@ export function saveGame(data) {
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
 }
 
+// 旧存档迁移
+export function migrateSave(data) {
+    if (!data.mechBuild) {
+        data.mechBuild = createDefaultMechBuild();
+    }
+    if (!data.partsInventory) {
+        data.partsInventory = createDefaultPartsInventory();
+    }
+    if (!data.researchedModules) {
+        data.researchedModules = ['C_STANDARD', 'H_STANDARD', 'A_STANDARD', 'L_STANDARD', 'CO_STANDARD', 'W_VULCAN'];
+    }
+    if (!data.materials) {
+        data.materials = 0;
+    }
+    // 兼容旧版武器系统
+    if (!data.weaponModules) {
+        data.weaponModules = {};
+    }
+    return data;
+}
+
+export function createDefaultMechBuild() {
+    return {
+        chassis: { moduleId: 'C_STANDARD', level: 1 },
+        head: { moduleId: 'H_STANDARD', level: 1 },
+        arms: { moduleId: 'A_STANDARD', level: 1 },
+        legs: { moduleId: 'L_STANDARD', level: 1 },
+        core: { moduleId: 'CO_STANDARD', level: 1 },
+        weaponLeft: { moduleId: 'W_VULCAN', level: 1 },
+        weaponRight: { moduleId: 'W_VULCAN', level: 1 }
+    };
+}
+
+export function createDefaultPartsInventory() {
+    return {
+        C_STANDARD: { level: 1, count: 1 },
+        H_STANDARD: { level: 1, count: 1 },
+        A_STANDARD: { level: 1, count: 1 },
+        L_STANDARD: { level: 1, count: 1 },
+        CO_STANDARD: { level: 1, count: 1 },
+        W_VULCAN: { level: 1, count: 2 }
+    };
+}
+
 export function createDefaultSave() {
     return {
         money: 1000,
         exp: 0,
         level: 1,
         expToNext: 100,
+        materials: 0,
+        mechBuild: createDefaultMechBuild(),
+        partsInventory: createDefaultPartsInventory(),
+        researchedModules: ['C_STANDARD', 'H_STANDARD', 'A_STANDARD', 'L_STANDARD', 'CO_STANDARD', 'W_VULCAN'],
+        // 保留旧版字段用于兼容
         mech: {
             maxHealth: 100,
             armorLevel: 0,
@@ -42,9 +92,10 @@ export function createDefaultSave() {
     };
 }
 
-export function addMoneyExp(save, money, exp) {
+export function addMoneyExp(save, money, exp, materials = 0) {
     save.money += money;
     save.exp += exp;
+    save.materials += materials;
     while (save.exp >= save.expToNext) {
         save.exp -= save.expToNext;
         save.level++;
@@ -59,12 +110,12 @@ export function upgradeCost(base, level) {
     return Math.floor(base * Math.pow(1.5, level));
 }
 
-// 机甲升级效果
+// 机甲升级效果（旧版兼容）
 export function getMechStats(save) {
     const m = save.mech;
     return {
         maxHealth: 100 + m.healthLevel * 20,
-        armor: m.armorLevel * 0.1, // 10% per level
+        armor: m.armorLevel * 0.1,
         maxSpeed: 2.5 + m.speedLevel * 0.15,
         dashCooldown: Math.max(20, 60 - m.dashLevel * 5)
     };

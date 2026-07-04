@@ -11,6 +11,7 @@ import LaserBeam from './classes/LaserBeam.js';
 import Particle from './classes/Particle.js';
 import Hook from './classes/Hook.js';
 import { initAudio, playShootSound, playExplosionSound, playHitSound, playDashSound, playHookSound, playRepairSound, playPickupSound, playBGM, stopBGM } from './audio.js';
+import { ALL_MODULES, MODULE_SLOTS, MODULE_RARITY, calculateMechBuild, moduleUpgradeCost, moduleResearchCost, salvageModule } from './modules.js';
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -31,6 +32,8 @@ let animationId = null;
 
 // 玩家存档
 let playerSave = loadSave();
+let selectedAssemblySlot = null;
+let selectedFilter = 'all';
 
 // ========== 页面切换 ==========
 window.showMainMenu = function() {
@@ -103,16 +106,25 @@ function renderLevelGrid() {
 window.switchHangarTab = function(tab) {
     document.querySelectorAll('.hangar-tab').forEach(t => t.classList.remove('active'));
     event.target.classList.add('active');
-    renderUpgradePanel(tab);
+    if (tab === 'assembly') {
+        renderAssemblyPanel();
+    } else {
+        renderUpgradePanel(tab);
+    }
 };
 
 function updateHangarUI() {
     document.getElementById('resourceBar').textContent = 
-        `金币: ${playerSave.money} | 经验: ${playerSave.exp} | 等级: ${playerSave.level}`;
+        `金币: ${playerSave.money} | 经验: ${playerSave.exp} | 材料: ${playerSave.materials} | 等级: ${playerSave.level}`;
     // 获取当前激活的标签页
     const activeTab = document.querySelector('.hangar-tab.active');
-    const tab = activeTab ? activeTab.textContent === '机甲升级' ? 'mech' : 'weapon' : 'mech';
-    renderUpgradePanel(tab);
+    let tab = 'mech';
+    if (activeTab) {
+        if (activeTab.textContent === '武器升级') tab = 'weapon';
+        else if (activeTab.textContent === '机甲组装') tab = 'assembly';
+    }
+    if (tab === 'assembly') renderAssemblyPanel();
+    else renderUpgradePanel(tab);
 }
 
 function renderUpgradePanel(tab) {
@@ -276,14 +288,25 @@ function startLevel(level) {
     // 生成敌人
     generateEnemiesForLevel(level);
     
-    // 创建机甲
-    const stats = getMechStats(playerSave);
+    // 创建机甲（基于模块化组装配置）
+    const build = calculateMechBuild(playerSave.mechBuild);
     mech = new Mech(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
-    mech.maxSpeed = stats.maxSpeed;
-    mech.dashMaxCooldown = stats.dashCooldown;
-    mech.maxHealth = stats.maxHealth;
-    mech.health = stats.maxHealth; // 满血开始
-    mech.armor = stats.armor;
+    mech.maxSpeed = build.maxSpeed;
+    mech.dashMaxCooldown = build.dashCooldown;
+    mech.maxHealth = build.maxHealth;
+    mech.health = build.maxHealth;
+    mech.armor = build.armor;
+    mech.maxEnergy = build.maxEnergy;
+    mech.currentEnergy = build.maxEnergy;
+    mech.damageBonus = build.damageBonus;
+    mech.reloadSpeed = build.reloadSpeed;
+    mech.meleeDamage = build.meleeDamage;
+    mech.aimBonus = build.aimBonus;
+    mech.cooldownReduction = build.cooldownReduction;
+    mech.energyRegen = build.energyRegen;
+    mech.maxShield = build.shield;
+    mech.shield = build.shield;
+    mech.repairRate = build.repairRate;
     mech.isDead = false;
     
     // 重置驾驶员
@@ -294,21 +317,27 @@ function startLevel(level) {
     import('./classes/Enemy.js').then(m => m.setMechRef(mech));
     import('./classes/Hook.js').then(m => m.setMechRef(mech));
     
-    // 设置武器（根据解锁状态）
+    // 设置武器（根据机甲组装配置）
     const weaponList = [];
-    const weaponKeys = ['VULCAN', 'SHOTGUN', 'CANNON', 'LASER', 'BEAM_SWORD'];
-    weaponKeys.forEach(key => {
-        if (playerSave.weapons[key].unlocked) {
-            const w = weaponEditorData[key];
-            const level = playerSave.weapons[key].level;
-            const multiplier = 1 + (level - 1) * 0.1;
-            weaponList.push({
-                ...w,
-                damage: w.damage * multiplier,
-                fireRate: Math.max(1, w.fireRate * (1 - (level - 1) * 0.05)),
-                spread: w.spread * (1 - (level - 1) * 0.1)
-            });
-        }
+    const equippedWeapons = [];
+    if (playerSave.mechBuild.weaponLeft && playerSave.mechBuild.weaponLeft.moduleId) {
+        equippedWeapons.push(playerSave.mechBuild.weaponLeft.moduleId);
+    }
+    if (playerSave.mechBuild.weaponRight && playerSave.mechBuild.weaponRight.moduleId) {
+        equippedWeapons.push(playerSave.mechBuild.weaponRight.moduleId);
+    }
+    equippedWeapons.forEach(moduleId => {
+        const m = ALL_MODULES[moduleId];
+        if (!m || !m.weaponKey) return;
+        const w = weaponEditorData[m.weaponKey];
+        const partLevel = playerSave.mechBuild[moduleId === playerSave.mechBuild.weaponLeft.moduleId ? 'weaponLeft' : 'weaponRight'].level;
+        const multiplier = 1 + (partLevel - 1) * 0.1;
+        weaponList.push({
+            ...w,
+            damage: w.damage * multiplier * (1 + build.damageBonus),
+            fireRate: Math.max(1, w.fireRate * (1 - (partLevel - 1) * 0.05)) / build.reloadSpeed,
+            spread: w.spread * (1 - (partLevel - 1) * 0.1) * (1 - build.aimBonus)
+        });
     });
     if (weaponList.length === 0) {
         weaponList.push(weaponEditorData.VULCAN);
@@ -1324,3 +1353,264 @@ document.addEventListener('keyup', (e) => {
 
 // 初始化显示主菜单
 showMainMenu();
+
+
+// ========== 机甲组装系统 ==========
+function renderAssemblyPanel() {
+    const panel = document.getElementById('upgradePanel');
+    panel.innerHTML = '';
+    panel.className = 'assembly-container';
+    
+    const build = calculateMechBuild(playerSave.mechBuild);
+    
+    // 左侧：当前机甲
+    const mechPanel = document.createElement('div');
+    mechPanel.className = 'assembly-mech';
+    mechPanel.innerHTML = `
+        <h3>当前机甲</h3>
+        <div id="mechSlots"></div>
+        <div class="mech-stats">
+            <h4>综合属性</h4>
+            <div class="stat-row"><span>血量上限</span><span class="stat-value">${Math.floor(build.maxHealth)}</span></div>
+            <div class="stat-row"><span>能量上限</span><span class="stat-value">${Math.floor(build.maxEnergy)}</span></div>
+            <div class="stat-row"><span>装甲减伤</span><span class="stat-value">${Math.floor(build.armor * 100)}%</span></div>
+            <div class="stat-row"><span>移动速度</span><span class="stat-value">${build.maxSpeed.toFixed(2)}</span></div>
+            <div class="stat-row"><span>冲刺冷却</span><span class="stat-value">${build.dashCooldown}</span></div>
+            <div class="stat-row"><span>伤害加成</span><span class="stat-value">${Math.floor(build.damageBonus * 100)}%</span></div>
+            <div class="stat-row"><span>射速加成</span><span class="stat-value">${Math.floor((build.reloadSpeed - 1) * 100)}%</span></div>
+            <div class="stat-row"><span>总重量</span><span class="stat-value">${build.totalWeight.toFixed(1)} / ${Math.floor(Math.max(50, build.maxEnergy * 0.8))}</span></div>
+            <div class="stat-row"><span>护盾</span><span class="stat-value">${Math.floor(build.shield)}</span></div>
+            <div class="stat-row"><span>自动修复</span><span class="stat-value">${build.repairRate.toFixed(1)}/秒</span></div>
+            <div id="overweightWarning" class="overweight" style="display:none;">警告：超重会导致速度和血量下降！</div>
+        </div>
+    `;
+    panel.appendChild(mechPanel);
+    renderMechSlots();
+    
+    // 超重警告
+    const maxWeight = Math.max(50, build.maxEnergy * 0.8);
+    const warning = document.getElementById('overweightWarning');
+    if (warning && build.totalWeight > maxWeight) warning.style.display = 'block';
+    
+    // 右侧：零件库
+    const partsPanel = document.createElement('div');
+    partsPanel.className = 'assembly-parts';
+    partsPanel.innerHTML = `
+        <h3>零件库</h3>
+        <div class="part-filters">
+            <div class="part-filter ${selectedFilter === 'all' ? 'active' : ''}" onclick="filterParts('all')">全部</div>
+            <div class="part-filter ${selectedFilter === 'chassis' ? 'active' : ''}" onclick="filterParts('chassis')">躯干</div>
+            <div class="part-filter ${selectedFilter === 'head' ? 'active' : ''}" onclick="filterParts('head')">头部</div>
+            <div class="part-filter ${selectedFilter === 'arms' ? 'active' : ''}" onclick="filterParts('arms')">手臂</div>
+            <div class="part-filter ${selectedFilter === 'legs' ? 'active' : ''}" onclick="filterParts('legs')">腿部</div>
+            <div class="part-filter ${selectedFilter === 'core' ? 'active' : ''}" onclick="filterParts('core')">核心</div>
+            <div class="part-filter ${selectedFilter === 'weapon' ? 'active' : ''}" onclick="filterParts('weapon')">武器</div>
+        </div>
+        <div class="parts-list" id="partsList"></div>
+        <div class="part-detail" id="partDetail">选择一个零件查看详情</div>
+    `;
+    panel.appendChild(partsPanel);
+    renderPartsList();
+}
+
+function renderMechSlots() {
+    const container = document.getElementById('mechSlots');
+    if (!container) return;
+    const slots = [
+        { key: 'chassis', label: '躯干' },
+        { key: 'head', label: '头部' },
+        { key: 'arms', label: '手臂' },
+        { key: 'legs', label: '腿部' },
+        { key: 'core', label: '核心' },
+        { key: 'weaponLeft', label: '左武器' },
+        { key: 'weaponRight', label: '右武器' }
+    ];
+    container.innerHTML = slots.map(s => {
+        const part = playerSave.mechBuild[s.key];
+        const m = part ? ALL_MODULES[part.moduleId] : null;
+        const selected = selectedAssemblySlot === s.key ? 'selected' : '';
+        const rarity = m ? MODULE_RARITY[m.rarity] : null;
+        return `
+            <div class="mech-slot ${selected}" onclick="selectAssemblySlot('${s.key}')">
+                <div><div class="slot-name">${s.label}</div><div class="part-name" style="color:${rarity ? rarity.color : '#666'}">${m ? m.name : '未装备'} <span style="color:#ffaa44">Lv.${part ? part.level : 0}</span></div></div>
+            </div>
+        `;
+    }).join('');
+}
+
+window.selectAssemblySlot = function(slotKey) {
+    selectedAssemblySlot = slotKey;
+    renderMechSlots();
+    renderPartsList();
+};
+
+window.filterParts = function(filter) {
+    selectedFilter = filter;
+    renderAssemblyPanel();
+};
+
+function renderPartsList() {
+    const list = document.getElementById('partsList');
+    if (!list) return;
+    list.innerHTML = '';
+    
+    const inventory = playerSave.partsInventory || {};
+    const researched = playerSave.researchedModules || [];
+    
+    for (const moduleId in ALL_MODULES) {
+        const m = ALL_MODULES[moduleId];
+        const owned = inventory[moduleId];
+        const isResearched = researched.includes(moduleId);
+        
+        if (selectedFilter !== 'all' && m.slot !== selectedFilter) continue;
+        if (selectedAssemblySlot) {
+            // 根据槽位过滤
+            const slotMap = {
+                chassis: 'chassis', head: 'head', arms: 'arms', legs: 'legs',
+                core: 'core', weaponLeft: 'weapon', weaponRight: 'weapon'
+            };
+            if (m.slot !== slotMap[selectedAssemblySlot]) continue;
+        }
+        
+        const item = document.createElement('div');
+        item.className = 'part-item';
+        const rarity = MODULE_RARITY[m.rarity];
+        item.innerHTML = `
+            <div class="part-info" onclick="showPartDetail('${moduleId}')">
+                <div class="part-title" style="color:${rarity.color}">${m.name}</div>
+                <div class="part-desc">${m.description}</div>
+            </div>
+            <div class="part-level">${owned ? '拥有 Lv.' + owned.level : isResearched ? '已研发' : '未研发'}</div>
+            <div class="part-actions">
+                <button ${owned && selectedAssemblySlot ? '' : 'disabled'} onclick="equipModule('${moduleId}')">装备</button>
+                <button ${owned && (owned.level < m.maxLevel) && playerSave.money >= moduleUpgradeCost(moduleId, owned.level) ? '' : 'disabled'} onclick="upgradeModule('${moduleId}')">升级</button>
+                <button class="btn-research" ${!isResearched && playerSave.money >= moduleResearchCost(moduleId) ? '' : 'disabled'} onclick="researchModule('${moduleId}')">${isResearched ? '已研发' : '研发'}</button>
+            </div>
+        `;
+        list.appendChild(item);
+    }
+}
+
+window.showPartDetail = function(moduleId) {
+    const detail = document.getElementById('partDetail');
+    if (!detail) return;
+    const m = ALL_MODULES[moduleId];
+    const stats = calculateModuleDisplayStats(moduleId);
+    const rarity = MODULE_RARITY[m.rarity];
+    detail.innerHTML = `
+        <h4 style="color:${rarity.color}">${m.name} [${rarity.name}]</h4>
+        <p style="color:#888;font-size:13px;">${m.description}</p>
+        <div class="detail-stat">类型: ${slotName(m.slot)}</div>
+        <div class="detail-stat">基础价格: ${m.cost} 金币</div>
+        <div class="detail-stat">${stats}</div>
+    `;
+};
+
+function slotName(slot) {
+    const names = { chassis: '躯干', head: '头部', arms: '手臂', legs: '腿部', core: '核心', weapon: '武器' };
+    return names[slot] || slot;
+}
+
+function calculateModuleDisplayStats(moduleId) {
+    const m = ALL_MODULES[moduleId];
+    const stats = getModuleStats(moduleId, 1);
+    const parts = [];
+    for (const key in stats) {
+        if (key === 'weight') continue;
+        const val = stats[key];
+        let label = key;
+        let display = val;
+        if (key === 'maxHealth') label = '血量';
+        if (key === 'maxEnergy') label = '能量';
+        if (key === 'armor') { label = '装甲'; display = (val * 100).toFixed(0) + '%'; }
+        if (key === 'maxSpeed') label = '移速';
+        if (key === 'damageBonus') { label = '伤害'; display = (val * 100).toFixed(0) + '%'; }
+        if (key === 'reloadSpeed') { label = '射速'; display = (val * 100).toFixed(0) + '%'; }
+        if (key === 'shield') label = '护盾';
+        if (key === 'repairRate') { label = '修复'; display = val + '/秒'; }
+        if (key === 'cooldownReduction') { label = '冷却'; display = (val * 100).toFixed(0) + '%'; }
+        parts.push(`${label}: ${display}`);
+    }
+    parts.push(`重量: ${stats.weight}`);
+    return parts.join(' | ');
+}
+
+window.equipModule = function(moduleId) {
+    if (!selectedAssemblySlot) return;
+    const inventory = playerSave.partsInventory;
+    if (!inventory[moduleId] || inventory[moduleId].count <= 0) return;
+    
+    const m = ALL_MODULES[moduleId];
+    const slotMap = {
+        chassis: 'chassis', head: 'head', arms: 'arms', legs: 'legs',
+        core: 'core', weaponLeft: 'weapon', weaponRight: 'weapon'
+    };
+    if (m.slot !== slotMap[selectedAssemblySlot]) return;
+    
+    // 卸下当前装备（如果有）
+    const current = playerSave.mechBuild[selectedAssemblySlot];
+    if (current) {
+        if (!inventory[current.moduleId]) inventory[current.moduleId] = { level: current.level, count: 0 };
+        inventory[current.moduleId].count++;
+    }
+    
+    // 装备新模块
+    playerSave.mechBuild[selectedAssemblySlot] = { moduleId, level: inventory[moduleId].level };
+    inventory[moduleId].count--;
+    if (inventory[moduleId].count <= 0) delete inventory[moduleId];
+    
+    saveGame(playerSave);
+    renderAssemblyPanel();
+};
+
+window.upgradeModule = function(moduleId) {
+    const inventory = playerSave.partsInventory;
+    if (!inventory[moduleId]) return;
+    const m = ALL_MODULES[moduleId];
+    if (inventory[moduleId].level >= m.maxLevel) return;
+    const cost = moduleUpgradeCost(moduleId, inventory[moduleId].level);
+    if (playerSave.money < cost) return;
+    
+    playerSave.money -= cost;
+    inventory[moduleId].level++;
+    
+    // 同步更新已装备的同类型模块等级
+    for (const slot in playerSave.mechBuild) {
+        const part = playerSave.mechBuild[slot];
+        if (part && part.moduleId === moduleId) {
+            part.level = inventory[moduleId].level;
+        }
+    }
+    
+    saveGame(playerSave);
+    renderAssemblyPanel();
+};
+
+window.researchModule = function(moduleId) {
+    const researched = playerSave.researchedModules;
+    if (researched.includes(moduleId)) return;
+    const cost = moduleResearchCost(moduleId);
+    if (playerSave.money < cost) return;
+    
+    playerSave.money -= cost;
+    researched.push(moduleId);
+    // 研发成功后获得该零件 1 个
+    if (!playerSave.partsInventory[moduleId]) {
+        playerSave.partsInventory[moduleId] = { level: 1, count: 0 };
+    }
+    playerSave.partsInventory[moduleId].count++;
+    
+    saveGame(playerSave);
+    renderAssemblyPanel();
+};
+
+window.salvagePart = function(moduleId) {
+    const inventory = playerSave.partsInventory;
+    if (!inventory[moduleId] || inventory[moduleId].count <= 0) return;
+    const materials = salvageModule(moduleId, inventory[moduleId].level);
+    playerSave.materials += materials;
+    inventory[moduleId].count--;
+    if (inventory[moduleId].count <= 0) delete inventory[moduleId];
+    saveGame(playerSave);
+    renderAssemblyPanel();
+};
