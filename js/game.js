@@ -29,9 +29,22 @@ let _currentPlayerSave = null;
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-canvas.width = CANVAS_WIDTH;
-canvas.height = CANVAS_HEIGHT;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 window.ctx = ctx;
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    if (typeof setCamera === 'function') {
+        const center = getCameraCenter();
+        setCamera(
+            Math.max(0, Math.min(WORLD_WIDTH - canvas.width, center.x - canvas.width / 2)),
+            Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, center.y - canvas.height / 2))
+        );
+    }
+}
+window.addEventListener('resize', resizeCanvas);
 
 window.enemies = enemies;
 window.obstacles = obstacles;
@@ -85,6 +98,9 @@ export function startLevel(level, playerSave, multiplayer = false) {
     document.getElementById('mainMenu').style.display = 'none';
     document.getElementById('levelSelect').style.display = 'none';
     document.getElementById('gameContainer').style.display = 'block';
+
+    resizeCanvas();
+    updateControlHints(multiplayer);
 
     bullets.length = 0;
     particles.length = 0;
@@ -489,6 +505,17 @@ function getCameraCenter() {
     const x = targets.reduce((s, p) => s + p.x, 0) / targets.length;
     const y = targets.reduce((s, p) => s + p.y, 0) / targets.length;
     return { x, y };
+}
+
+function updateControlHints(showP2) {
+    const p2Controls = document.getElementById('p2Controls');
+    const p2ActionControls = document.getElementById('p2ActionControls');
+    if (p2Controls) p2Controls.style.display = showP2 ? 'block' : 'none';
+    if (p2ActionControls) p2ActionControls.style.display = showP2 ? 'block' : 'none';
+}
+
+export function resizeGameCanvas() {
+    resizeCanvas();
 }
 
 function spawnDrops(x, y, template, source) {

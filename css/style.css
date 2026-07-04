@@ -24,8 +24,11 @@ body {
 }
 
 #gameCanvas {
-    border: 2px solid #333;
+    border: none;
     background: #1a1a1a;
+    display: block;
+    width: 100vw;
+    height: 100vh;
 }
 
 /* 信息面板 */
@@ -36,6 +39,8 @@ body {
     color: #fff;
     font-size: 14px;
     line-height: 1.6;
+    z-index: 10;
+    pointer-events: none;
 }
 #info h3 {
     margin: 0 0 10px 0;
@@ -358,6 +363,7 @@ body {
     font-family: monospace;
     text-align: right;
     z-index: 50;
+    pointer-events: none;
 }
 #gameHUD .hud-line {
     margin: 3px 0;
