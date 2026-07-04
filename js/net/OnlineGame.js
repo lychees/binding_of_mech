@@ -144,9 +144,6 @@ function applyWorldState(state, gameState) {
         gameState.drops.length = 0;
         gameState.drops.push(...state.drops);
     }
-    if (state.evacuationPoint) {
-        Object.assign(gameState.evacuationPoint || {}, state.evacuationPoint);
-    }
 }
 
 function startOnlineLevel(levelId, gameState) {
@@ -201,8 +198,7 @@ export function syncWorldState(gameState) {
             x: e.x, y: e.y, health: e.health, angle: e.angle,
             templateKey: e.templateKey, size: e.size
         })),
-        drops: gameState.drops.map(d => ({ ...d })),
-        evacuationPoint: gameState.evacuationPoint ? { ...gameState.evacuationPoint } : null
+        drops: gameState.drops.map(d => ({ ...d }))
     });
 }
 

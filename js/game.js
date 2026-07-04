@@ -67,10 +67,6 @@ let gameRunning = false;
 let animationId = null;
 let fortress = null;
 const floatingTexts = [];
-let evacuationPoint = null;
-let evacuationHoldTime = 0;
-const EVACUATION_HOLD_REQUIRED = 90;
-let evacuationPromptShown = false;
 let isMultiplayer = false;
 
 export function getMech() { return mech; }
@@ -89,7 +85,6 @@ export function startLevel(level, playerSave, multiplayer = false) {
     _currentPlayerSave = playerSave;
     setPlayerSave(playerSave);
     window.__startLevelCalled = true;
-    window.evacuationPoint = null;
     currentLevel = level;
     missionMoney = 0;
     missionExp = 0;
@@ -112,9 +107,6 @@ export function startLevel(level, playerSave, multiplayer = false) {
     drops.length = 0;
     floatingTexts.length = 0;
     players = [];
-    evacuationPoint = null;
-    evacuationHoldTime = 0;
-    evacuationPromptShown = false;
 
     resetInputs();
     document.getElementById('missionResult').style.display = 'none';
@@ -122,7 +114,6 @@ export function startLevel(level, playerSave, multiplayer = false) {
     generateObstacles();
     generateTrees();
     generateCrates();
-    generateEvacuationPoint();
     generateEnemiesForLevel(level);
 
     fortress = null;
@@ -321,19 +312,6 @@ function generateCrates() {
     }
 }
 
-function generateEvacuationPoint() {
-    window.__evacGenCalled = true;
-    const margin = 150;
-    evacuationPoint = {
-        x: margin + Math.random() * (WORLD_WIDTH - margin * 2),
-        y: margin + Math.random() * (WORLD_HEIGHT - margin * 2),
-        radius: 40,
-        active: true,
-        pulse: 0
-    };
-    window.evacuationPoint = evacuationPoint;
-}
-
 function generateEnemiesForLevel(level) {
     let types = level.enemyTypes;
     if (types.includes('all')) types = Object.keys(ENEMY_TEMPLATES);
@@ -368,6 +346,7 @@ function gameLoop() {
             missionExp += 200;
             getPlayerSave().materials += 50;
             particles.push(...createSpark(fortress.x, fortress.y, '#ff8800', 100, 8));
+            spawnFortressWreckage(fortress.x, fortress.y);
             fortress = null;
         }
     }
@@ -420,7 +399,7 @@ function gameLoop() {
             remote.draw();
         }
         syncLocalPlayer(mech);
-        syncWorldState({ enemies, drops, evacuationPoint });
+        syncWorldState({ enemies, drops });
     }
 
     // 玩家之间碰撞
@@ -480,8 +459,6 @@ function gameLoop() {
     }
 
     updateDrops();
-    updateEvacuationPoint();
-    checkEvacuation();
     updateFloatingTexts();
     drawWeaponUI();
     drawMinimap();
@@ -552,6 +529,37 @@ function spawnDrops(x, y, template, source) {
             drops.push(createDropFromItem(item, x + (Math.random() - 0.5) * 25, y + (Math.random() - 0.5) * 25));
         }
     }
+}
+
+function spawnFortressWreckage(x, y) {
+    obstacles.push({
+        x: x - 60, y: y - 60,
+        width: 120, height: 120,
+        type: 'wreckage',
+        color: '#3a2a2a',
+        health: 0, maxHealth: 1,
+        isWreckage: true
+    });
+
+    for (let i = 0; i < 5; i++) {
+        const type = Math.random() < 0.5 ? 'alloySteel' : 'darkFuel';
+        const amount = type === 'alloySteel' ? 15 + Math.floor(Math.random() * 11) : 8 + Math.floor(Math.random() * 7);
+        const item = new InventoryItem(type, amount);
+        drops.push(createDropFromItem(item, x + (Math.random() - 0.5) * 80, y + (Math.random() - 0.5) * 80));
+    }
+
+    if (Math.random() < 0.5) {
+        const item = new InventoryItem('dataCore', 1);
+        drops.push(createDropFromItem(item, x + (Math.random() - 0.5) * 60, y + (Math.random() - 0.5) * 60));
+    }
+
+    if (Math.random() < 0.25) {
+        const item = new InventoryItem('ammoBox', 1);
+        drops.push(createDropFromItem(item, x + (Math.random() - 0.5) * 60, y + (Math.random() - 0.5) * 60));
+    }
+
+    const repairItem = new InventoryItem('repairKit', 3 + Math.floor(Math.random() * 4));
+    drops.push(createDropFromItem(repairItem, x + (Math.random() - 0.5) * 60, y + (Math.random() - 0.5) * 60));
 }
 
 function ejectPilot() {
@@ -826,6 +834,29 @@ function drawObstacles() {
             ctx.beginPath();
             ctx.arc(cx - radius * 0.2, cy - radius * 0.4, radius * 0.4, 0, Math.PI * 2);
             ctx.fill();
+        } else if (obs.isWreckage) {
+            ctx.save();
+            ctx.translate(sx + obs.width / 2, sy + obs.height / 2);
+            ctx.rotate(Math.PI / 8);
+            ctx.fillStyle = '#2a1a1a';
+            ctx.fillRect(-obs.width / 2, -obs.height / 2, obs.width, obs.height);
+            ctx.strokeStyle = '#5a3a3a';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(-obs.width / 2, -obs.height / 2, obs.width, obs.height);
+            ctx.fillStyle = '#ff4400';
+            ctx.beginPath();
+            ctx.arc(-20, -10, 6, 0, Math.PI * 2);
+            ctx.arc(15, 20, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 100, 0, 0.3)';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 6; i++) {
+                ctx.beginPath();
+                ctx.moveTo((Math.random() - 0.5) * obs.width, (Math.random() - 0.5) * obs.height);
+                ctx.lineTo((Math.random() - 0.5) * obs.width, (Math.random() - 0.5) * obs.height);
+                ctx.stroke();
+            }
+            ctx.restore();
         } else {
             ctx.fillStyle = obs.color;
             ctx.fillRect(sx, sy, obs.width, obs.height);
@@ -887,18 +918,7 @@ function updateHUD() {
 
     const hudEvac = document.getElementById('hudEvac');
     if (hudEvac) {
-        if (evacuationPoint?.active) {
-            const targets = isPilotActive && pilot && !pilot.isDead ? [pilot] : players.filter(p => !p.isDead);
-            const closest = targets.reduce((best, t) => {
-                const d = dist(t.x, t.y, evacuationPoint.x, evacuationPoint.y);
-                return d < best.d ? { t, d } : best;
-            }, { d: Infinity });
-            hudEvac.textContent = closest.d < evacuationPoint.radius ? '可撤离 (长按 E)' : '已标记';
-            hudEvac.style.color = closest.d < evacuationPoint.radius ? '#00ff88' : '#00d4ff';
-        } else {
-            hudEvac.textContent = '未激活';
-            hudEvac.style.color = '#888';
-        }
+        hudEvac.style.display = 'none';
     }
 
     drawPlayerHealthBars();
@@ -1095,111 +1115,6 @@ function updateFloatingTexts() {
     }
 }
 
-function updateEvacuationPoint() {
-    if (!evacuationPoint?.active) return;
-    evacuationPoint.pulse += 0.08;
-    const sx = evacuationPoint.x - cameraX;
-    const sy = evacuationPoint.y - cameraY;
-    if (sx + 60 < 0 || sx - 60 > canvas.width || sy + 60 < 0 || sy - 60 > canvas.height) return;
-
-    const pulseRadius = evacuationPoint.radius + Math.sin(evacuationPoint.pulse) * 8;
-    ctx.strokeStyle = 'rgba(0, 212, 255, 0.6)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(sx, sy, pulseRadius, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.fillStyle = 'rgba(0, 212, 255, 0.2)';
-    ctx.beginPath();
-    ctx.arc(sx, sy, evacuationPoint.radius * 0.6, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#00d4ff';
-    ctx.font = 'bold 14px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('EVAC', sx, sy - evacuationPoint.radius - 12);
-    ctx.textAlign = 'left';
-
-    ctx.save();
-    ctx.translate(sx, sy);
-    ctx.rotate(evacuationPoint.pulse * 0.5);
-    ctx.strokeStyle = '#00d4ff';
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 4; i++) {
-        ctx.rotate(Math.PI / 2);
-        ctx.beginPath();
-        ctx.moveTo(evacuationPoint.radius * 0.4, 0);
-        ctx.lineTo(evacuationPoint.radius * 0.7, 0);
-        ctx.lineTo(evacuationPoint.radius * 0.55, -6);
-        ctx.moveTo(evacuationPoint.radius * 0.7, 0);
-        ctx.lineTo(evacuationPoint.radius * 0.55, 6);
-        ctx.stroke();
-    }
-    ctx.restore();
-}
-
-function checkEvacuation() {
-    if (!evacuationPoint?.active) return;
-    const targets = isPilotActive && pilot && !pilot.isDead ? [pilot] : players.filter(p => !p.isDead);
-    const inRange = targets.some(t => dist(t.x, t.y, evacuationPoint.x, evacuationPoint.y) < evacuationPoint.radius);
-    if (inRange) {
-        showEvacuationPrompt(true);
-        evacuationHoldTime++;
-        const target = targets.find(t => dist(t.x, t.y, evacuationPoint.x, evacuationPoint.y) < evacuationPoint.radius);
-        if (target) drawEvacuationProgress(target.x, target.y);
-        if (evacuationHoldTime >= EVACUATION_HOLD_REQUIRED) evacuateMission();
-    } else {
-        showEvacuationPrompt(false);
-        evacuationHoldTime = 0;
-    }
-}
-
-function drawEvacuationProgress(x, y) {
-    const ratio = evacuationHoldTime / EVACUATION_HOLD_REQUIRED;
-    const sx = x - cameraX;
-    const sy = y - cameraY - 35;
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(sx, sy, 12, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.strokeStyle = '#00d4ff';
-    ctx.beginPath();
-    ctx.arc(sx, sy, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ratio);
-    ctx.stroke();
-}
-
-function evacuateMission() {
-    gameRunning = false;
-    showEvacuationPrompt(false);
-    if (evacuationPoint) evacuationPoint.active = false;
-    showMissionResult(true);
-    const resultTitle = document.getElementById('resultTitle');
-    if (resultTitle) resultTitle.textContent = '撤离成功';
-}
-
-function showEvacuationPrompt(show) {
-    let prompt = document.getElementById('evacuationPrompt');
-    if (!prompt) {
-        prompt = document.createElement('div');
-        prompt.id = 'evacuationPrompt';
-        prompt.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.85); color:#00d4ff; padding:20px 30px; border:2px solid #00d4ff; border-radius:8px; font-family:monospace; font-size:16px; z-index:300; display:none; text-align:center;';
-        prompt.innerHTML = `
-            <div style="font-size:20px; margin-bottom:10px;">撤离点已就绪</div>
-            <div>进入范围自动撤离</div>
-            <div style="font-size:12px; color:#888; margin-top:8px;">保持原地约 1.5 秒即可撤离</div>
-            <div style="font-size:12px; color:#888; margin-top:8px;">保留当前获得的金币、经验和材料</div>`;
-        document.getElementById('gameContainer').appendChild(prompt);
-    }
-    if (show && !evacuationPromptShown) {
-        prompt.style.display = 'block';
-        evacuationPromptShown = true;
-    } else if (!show && evacuationPromptShown) {
-        prompt.style.display = 'none';
-        evacuationPromptShown = false;
-    }
-}
-
 function drawMinimap() {
     const mapSize = 150;
     const mapX = canvas.width - mapSize - 10;
@@ -1224,13 +1139,6 @@ function drawMinimap() {
         ctx.fillStyle = p.playerTag === 'p1' ? '#00d4ff' : p.playerTag === 'remote' ? '#ffaa44' : '#00ff88';
         ctx.beginPath();
         ctx.arc(mapX + p.x * scaleX, mapY + p.y * scaleY, 3, 0, Math.PI * 2);
-        ctx.fill();
-    }
-
-    if (evacuationPoint?.active) {
-        ctx.fillStyle = 'rgba(0, 212, 255, 0.5)';
-        ctx.beginPath();
-        ctx.arc(mapX + evacuationPoint.x * scaleX, mapY + evacuationPoint.y * scaleY, 4, 0, Math.PI * 2);
         ctx.fill();
     }
 
@@ -1342,5 +1250,4 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('keyup', (e) => {
     keys[e.key] = false;
-    if (e.key === 'e' || e.key === 'E') evacuationHoldTime = 0;
 });
