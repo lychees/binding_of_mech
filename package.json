@@ -1,0 +1,20 @@
+{
+  "name": "binding-of-mech",
+  "version": "1.0.0",
+  "description": "Binding of Mech - 机甲战斗游戏",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/unit/*.test.js",
+    "test:e2e": "node tests/e2e/runner.js",
+    "test:all": "npm run test && npm run test:e2e",
+    "serve": "python3 -m http.server 8902",
+    "lint": "node --check js/main.js && node --check data/save.js && node --check js/modules.js && node --check js/weapons.js && node --check js/blueprints.js"
+  },
+  "keywords": ["game", "mech", "canvas"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

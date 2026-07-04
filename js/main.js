@@ -23,6 +23,15 @@ canvas.height = CANVAS_HEIGHT;
 // 让模块内的类可以使用全局ctx
 window.ctx = ctx;
 
+// 暴露关键状态到全局，便于测试和调试
+window.enemies = enemies;
+window.obstacles = obstacles;
+window.bullets = bullets;
+window.particles = particles;
+window.hooks = hooks;
+window.drops = drops;
+window.inventory = inventory;
+
 let mech;
 let pilot = null;
 let isPilotActive = false;
