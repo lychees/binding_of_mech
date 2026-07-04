@@ -577,33 +577,90 @@ function renderAssemblyPanel() {
     const isOverweight = build.totalWeight > maxWeight;
 
     panel.innerHTML = `
-        <div class="assembly-mech">
-            <h3>当前机甲</h3>
-            <div id="mechSlots"></div>
+        <div class="assembly-blueprint">
+            <h3>MECH BLUEPRINT</h3>
+            <div class="mech-schematic" id="mechSchematic">
+                <svg class="mech-svg" viewBox="0 0 320 360" preserveAspectRatio="xMidYMid meet">
+                    <!-- grid lines -->
+                    <defs>
+                        <pattern id="bpGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(76,175,80,0.15)" stroke-width="1"/>
+                        </pattern>
+                    </defs>
+                    <rect width="320" height="360" fill="url(#bpGrid)" />
+                    <!-- center crosshair -->
+                    <line x1="160" y1="40" x2="160" y2="320" stroke="rgba(76,175,80,0.4)" stroke-dasharray="4 2" />
+                    <line x1="60" y1="180" x2="260" y2="180" stroke="rgba(76,175,80,0.4)" stroke-dasharray="4 2" />
+                    <!-- mech chassis outline -->
+                    <g stroke="#ffeb3b" stroke-width="1.5" fill="none" opacity="0.85">
+                        <!-- head -->
+                        <rect x="145" y="55" width="30" height="28" rx="4" />
+                        <!-- upper torso -->
+                        <rect x="125" y="85" width="70" height="55" rx="6" />
+                        <!-- core detail -->
+                        <circle cx="160" cy="112" r="14" />
+                        <line x1="160" y1="98" x2="160" y2="126" />
+                        <line x1="146" y1="112" x2="174" y2="112" />
+                        <!-- lower torso -->
+                        <polygon points="130,142 190,142 180,180 140,180" />
+                        <!-- left arm -->
+                        <rect x="70" y="95" width="50" height="18" rx="3" />
+                        <rect x="55" y="98" width="20" height="12" rx="2" />
+                        <!-- right arm -->
+                        <rect x="200" y="95" width="50" height="18" rx="3" />
+                        <rect x="245" y="98" width="20" height="12" rx="2" />
+                        <!-- left leg -->
+                        <rect x="135" y="185" width="22" height="65" rx="3" />
+                        <rect x="132" y="252" width="28" height="18" rx="2" />
+                        <!-- right leg -->
+                        <rect x="203" y="185" width="22" height="65" rx="3" />
+                        <rect x="200" y="252" width="28" height="18" rx="2" />
+                        <!-- left weapon mount -->
+                        <line x1="90" y1="112" x2="90" y2="140" />
+                        <rect x="82" y="140" width="16" height="45" rx="2" fill="#c8b900" fill-opacity="0.2" />
+                        <!-- right weapon mount -->
+                        <line x1="230" y1="112" x2="230" y2="140" />
+                        <rect x="222" y="140" width="16" height="45" rx="2" fill="#c8b900" fill-opacity="0.2" />
+                    </g>
+                    <!-- dimension lines -->
+                    <g stroke="rgba(76,175,80,0.6)" stroke-width="1" fill="#4caf50" font-size="9" font-family="monospace">
+                        <line x1="50" y1="35" x2="270" y2="35" />
+                        <line x1="50" y1="32" x2="50" y2="38" />
+                        <line x1="270" y1="32" x2="270" y2="38" />
+                        <text x="160" y="30" text-anchor="middle">WIDTH 8.4m</text>
+
+                        <line x1="40" y1="50" x2="40" y2="310" />
+                        <line x1="37" y1="50" x2="43" y2="50" />
+                        <line x1="37" y1="310" x2="43" y2="310" />
+                        <text x="30" y="185" text-anchor="middle" transform="rotate(-90 30 185)">HEIGHT 12.6m</text>
+                    </g>
+                </svg>
+                <div id="mechSlots"></div>
+            </div>
             <div class="mech-stats">
-                <h4>综合属性</h4>
-                ${renderStatRow('血量上限', Math.floor(build.maxHealth))}
-                ${renderStatRow('能量上限', Math.floor(build.maxEnergy))}
-                ${renderStatRow('装甲减伤', Math.floor(build.armor * 100) + '%')}
-                ${renderStatRow('移动速度', build.maxSpeed.toFixed(2))}
-                ${renderStatRow('冲刺冷却', build.dashCooldown)}
-                ${renderStatRow('伤害加成', Math.floor(build.damageBonus * 100) + '%')}
-                ${renderStatRow('射速加成', Math.floor((build.reloadSpeed - 1) * 100) + '%')}
-                ${renderStatRow('总重量', build.totalWeight.toFixed(1) + ' / ' + Math.floor(maxWeight))}
-                ${renderStatRow('护盾', Math.floor(build.shield))}
-                ${renderStatRow('自动修复', build.repairRate.toFixed(1) + '/秒')}
-                <div id="overweightWarning" class="overweight" style="display:${isOverweight ? 'block' : 'none'}">警告：超重会导致速度和血量下降！</div>
+                <h4>// SPECIFICATIONS</h4>
+                ${renderStatRow('HP', Math.floor(build.maxHealth))}
+                ${renderStatRow('EN', Math.floor(build.maxEnergy))}
+                ${renderStatRow('ARMOR', Math.floor(build.armor * 100) + '%')}
+                ${renderStatRow('SPEED', build.maxSpeed.toFixed(2))}
+                ${renderStatRow('DASH CD', build.dashCooldown)}
+                ${renderStatRow('DAMAGE', Math.floor(build.damageBonus * 100) + '%')}
+                ${renderStatRow('RELOAD', Math.floor((build.reloadSpeed - 1) * 100) + '%')}
+                ${renderStatRow('WEIGHT', build.totalWeight.toFixed(1) + ' / ' + Math.floor(maxWeight))}
+                ${renderStatRow('SHIELD', Math.floor(build.shield))}
+                ${renderStatRow('REPAIR', build.repairRate.toFixed(1) + '/s')}
+                <div id="overweightWarning" class="overweight" style="display:${isOverweight ? 'block' : 'none'}">WARNING: OVERWEIGHT DETECTED</div>
             </div>
         </div>
         <div class="assembly-parts">
-            <h3>零件库</h3>
+            <h3>PARTS WAREHOUSE</h3>
             <div class="part-filters">
                 ${['all', 'chassis', 'head', 'arms', 'legs', 'core', 'weapon'].map(f =>
                     `<div class="part-filter ${selectedFilter === f ? 'active' : ''}" onclick="filterParts('${f}')">${filterName(f)}</div>`
                 ).join('')}
             </div>
             <div class="parts-list" id="partsList"></div>
-            <div class="part-detail" id="partDetail">选择一个零件查看详情</div>
+            <div class="part-detail" id="partDetail">SELECT A PART TO VIEW DETAILS</div>
         </div>
     `;
     renderMechSlots();
@@ -623,27 +680,26 @@ function renderMechSlots() {
     const container = document.getElementById('mechSlots');
     if (!container) return;
     const slots = [
-        { key: 'chassis', label: '躯干' },
-        { key: 'head', label: '头部' },
-        { key: 'arms', label: '手臂' },
-        { key: 'legs', label: '腿部' },
-        { key: 'core', label: '核心' },
-        { key: 'weaponLeft', label: '左武器' },
-        { key: 'weaponRight', label: '右武器' }
+        { key: 'head', label: 'HEAD', x: '50%', y: '21%' },
+        { key: 'chassis', label: 'CHASSIS', x: '50%', y: '33%' },
+        { key: 'core', label: 'CORE', x: '50%', y: '31%' },
+        { key: 'arms', label: 'ARMS', x: '28%', y: '30%' },
+        { key: 'legs', label: 'LEGS', x: '62%', y: '63%' },
+        { key: 'weaponLeft', label: 'L-WPN', x: '28%', y: '48%' },
+        { key: 'weaponRight', label: 'R-WPN', x: '72%', y: '48%' }
     ];
     container.innerHTML = slots.map(s => {
         const part = playerSave.mechBuild[s.key];
         const m = part ? ALL_MODULES[part.moduleId] : null;
         const selected = selectedAssemblySlot === s.key ? 'selected' : '';
         const rarity = m ? MODULE_RARITY[m.rarity] : null;
+        const color = rarity ? rarity.color : '#888';
         return `
-            <div class="mech-slot ${selected}" onclick="selectAssemblySlot('${s.key}')">
-                <div>
-                    <div class="slot-name">${s.label}</div>
-                    <div class="part-name" style="color:${rarity ? rarity.color : '#666'}">
-                        ${m ? m.name : '未装备'} <span style="color:#ffaa44">Lv.${part ? part.level : 0}</span>
-                    </div>
-                </div>
+            <div class="bp-slot ${selected}" style="left:${s.x};top:${s.y};${selected ? 'border-color:var(--bp-yellow);' : ''}"
+                onclick="selectAssemblySlot('${s.key}')">
+                <div class="bp-slot-name">${s.label}</div>
+                <div class="bp-part-name" style="color:${color}">${m ? m.name : 'EMPTY'}</div>
+                ${m ? `<div class="bp-level">Lv.${part.level}</div>` : ''}
             </div>`;
     }).join('');
 }

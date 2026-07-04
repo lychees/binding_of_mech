@@ -67,6 +67,8 @@ function updateFromKeys(input, bindings) {
     input.backward = bindings.backward.some(k => keys[k]);
     input.strafeLeft = bindings.strafeLeft.some(k => keys[k]);
     input.strafeRight = bindings.strafeRight.some(k => keys[k]);
+    input.left = input.strafeLeft;
+    input.right = input.strafeRight;
     input.turnLeft = bindings.turnLeft.some(k => keys[k]);
     input.turnRight = bindings.turnRight.some(k => keys[k]);
     input.weaponLeft = bindings.weaponLeft.some(k => keys[k]);
@@ -76,8 +78,14 @@ function updateFromKeys(input, bindings) {
     input.dash = bindings.dash.some(k => keys[k]);
 
     // For P2, arrow keys directly map to movement (no strafe/weapon conflict)
-    if (bindings.left && !bindings.strafeLeft.length) input.left = bindings.left.some(k => keys[k]);
-    if (bindings.right && !bindings.strafeRight.length) input.right = bindings.right.some(k => keys[k]);
+    if (bindings.left && !bindings.strafeLeft.length) {
+        input.left = bindings.left.some(k => keys[k]);
+        input.strafeLeft = input.left;
+    }
+    if (bindings.right && !bindings.strafeRight.length) {
+        input.right = bindings.right.some(k => keys[k]);
+        input.strafeRight = input.right;
+    }
 
     const weaponKeys = [bindings.weapon1[0], bindings.weapon2[0], bindings.weapon3[0], bindings.weapon4[0], bindings.weapon5[0]];
     input.weaponSwitch = weaponKeys.findIndex(k => keys[k]) + 1;

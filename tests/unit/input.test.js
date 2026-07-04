@@ -2,11 +2,11 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
 // input.js 依赖浏览器 DOM keys 对象，这里模拟最小环境
-await import('../../js/config.js').then(m => {
+await import('../../js/config.js?v=2').then(m => {
     global.keys = m.keys;
 });
 
-const { p1Input, p2Input, updateInputs, resetInputs } = await import('../../js/input.js');
+const { p1Input, p2Input, updateInputs, resetInputs } = await import('../../js/input.js?v=2');
 
 describe('输入管理器', () => {
     it('P1 和 P2 输入状态默认全 false', () => {

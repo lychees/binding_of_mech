@@ -1,3 +1,15 @@
+:root {
+    --bp-bg: #0d1a0d;
+    --bp-grid: rgba(60, 120, 60, 0.25);
+    --bp-line: #4caf50;
+    --bp-line-dim: #2e7d32;
+    --bp-yellow: #ffeb3b;
+    --bp-yellow-dim: #c8b900;
+    --bp-panel: rgba(10, 30, 10, 0.92);
+    --bp-metal: #7a8a7a;
+    --bp-text: #c8e6c9;
+}
+
 /* 全局样式 */
 body {
     margin: 0;
@@ -388,181 +400,282 @@ body {
     margin-top: 20px;
 }
 
-/* 机甲组装系统 */
+/* 机甲组装系统 - 钢铁咆哮蓝图风格 */
 #hangar .assembly-container {
-    display: flex;
-    gap: 20px;
-    max-width: 1000px;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 16px;
+    max-width: 1200px;
     width: 100%;
     padding: 0 20px 40px 20px;
 }
-.assembly-mech {
-    flex: 1;
-    background: rgba(20, 20, 30, 0.9);
-    border: 1px solid #333;
-    border-radius: 8px;
+
+.assembly-blueprint {
+    background:
+        linear-gradient(90deg, var(--bp-grid) 1px, transparent 1px),
+        linear-gradient(var(--bp-grid) 1px, transparent 1px),
+        var(--bp-bg);
+    background-size: 24px 24px, 24px 24px, 100% 100%;
+    border: 3px double var(--bp-line);
+    border-radius: 0;
     padding: 20px;
-    color: #fff;
-    min-width: 300px;
+    color: var(--bp-text);
+    min-width: 340px;
+    box-shadow: inset 0 0 60px rgba(0, 80, 0, 0.35);
+    position: relative;
 }
-.assembly-mech h3 {
-    color: #00d4ff;
-    margin: 0 0 15px 0;
+.assembly-blueprint::before {
+    content: 'BLUEPRINT // MECH DESIGN';
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    font: 11px 'Courier New', monospace;
+    color: var(--bp-line-dim);
+    letter-spacing: 1px;
+}
+.assembly-blueprint h3 {
+    color: var(--bp-yellow);
+    margin: 0 0 12px 0;
     text-align: center;
+    font-family: 'Courier New', monospace;
+    font-weight: normal;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--bp-line-dim);
+    padding-bottom: 8px;
 }
-.mech-slot {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid #444;
-    border-radius: 4px;
-    padding: 10px;
-    margin-bottom: 8px;
+
+.mech-schematic {
+    position: relative;
+    width: 100%;
+    height: 360px;
+    margin: 10px 0 16px;
+    background: rgba(0, 30, 0, 0.25);
+    border: 1px solid var(--bp-line-dim);
+    overflow: hidden;
+}
+.mech-schematic::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, transparent 49.5%, var(--bp-line-dim) 49.5%, var(--bp-line-dim) 50.5%, transparent 50.5%),
+        linear-gradient(transparent 49.5%, var(--bp-line-dim) 49.5%, var(--bp-line-dim) 50.5%, transparent 50.5%);
+    opacity: 0.4;
+    pointer-events: none;
+}
+.mech-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.bp-slot {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    padding: 4px 8px;
+    border: 1px dashed var(--bp-line);
+    background: rgba(10, 40, 10, 0.7);
+    color: var(--bp-yellow-dim);
+    font: 11px 'Courier New', monospace;
     cursor: pointer;
-    transition: all 0.2s;
+    white-space: nowrap;
+    transition: all 0.15s;
+    z-index: 2;
 }
-.mech-slot:hover {
-    border-color: #00d4ff;
+.bp-slot:hover,
+.bp-slot.selected {
+    border-style: solid;
+    border-color: var(--bp-yellow);
+    color: var(--bp-yellow);
+    background: rgba(20, 60, 20, 0.9);
+    box-shadow: 0 0 10px rgba(255, 235, 59, 0.2);
 }
-.mech-slot.selected {
-    border-color: #00d4ff;
-    background: rgba(0, 212, 255, 0.1);
+.bp-slot .bp-slot-name {
+    font-size: 9px;
+    color: var(--bp-line);
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
-.mech-slot .slot-name {
-    color: #888;
+.bp-slot .bp-part-name {
     font-size: 12px;
-}
-.mech-slot .part-name {
-    color: #fff;
     font-weight: bold;
 }
+.bp-slot .bp-level {
+    font-size: 9px;
+    color: #ffaa44;
+}
+
+.bp-connector {
+    stroke: var(--bp-line-dim);
+    stroke-width: 1;
+    fill: none;
+    stroke-dasharray: 4 2;
+    opacity: 0.7;
+}
+
 .mech-stats {
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px solid #333;
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--bp-panel);
+    border: 1px solid var(--bp-line-dim);
 }
 .mech-stats h4 {
-    color: #ffaa44;
+    color: var(--bp-yellow);
     margin: 0 0 10px 0;
+    font-family: 'Courier New', monospace;
+    font-weight: normal;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--bp-line-dim);
+    padding-bottom: 4px;
 }
 .mech-stats .stat-row {
     display: flex;
     justify-content: space-between;
-    font-size: 13px;
-    margin: 4px 0;
+    font-size: 12px;
+    margin: 3px 0;
+    font-family: 'Courier New', monospace;
+    color: var(--bp-text);
 }
 .mech-stats .stat-row .stat-value {
-    color: #00ff88;
+    color: var(--bp-yellow);
 }
 .mech-stats .overweight {
     color: #ff4444;
-    font-size: 12px;
+    font-size: 11px;
     margin-top: 8px;
+    font-family: 'Courier New', monospace;
 }
+
 .assembly-parts {
-    flex: 1.2;
-    background: rgba(20, 20, 30, 0.9);
-    border: 1px solid #333;
-    border-radius: 8px;
-    padding: 20px;
-    color: #fff;
-    min-width: 350px;
+    background: var(--bp-panel);
+    border: 3px double var(--bp-metal);
+    border-radius: 0;
+    padding: 16px;
+    color: var(--bp-text);
+    min-width: 320px;
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5);
 }
 .assembly-parts h3 {
-    color: #00d4ff;
-    margin: 0 0 15px 0;
+    color: var(--bp-yellow);
+    margin: 0 0 12px 0;
+    font-family: 'Courier New', monospace;
+    font-weight: normal;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--bp-line-dim);
+    padding-bottom: 8px;
 }
 .part-filters {
     display: flex;
-    gap: 8px;
-    margin-bottom: 15px;
+    gap: 6px;
+    margin-bottom: 12px;
     flex-wrap: wrap;
 }
 .part-filter {
-    background: #222;
-    border: 1px solid #444;
-    color: #ccc;
-    padding: 4px 12px;
+    background: rgba(20, 40, 20, 0.8);
+    border: 1px solid var(--bp-line-dim);
+    color: var(--bp-text);
+    padding: 4px 10px;
     cursor: pointer;
-    font-size: 12px;
-    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    border-radius: 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.part-filter:hover {
+    border-color: var(--bp-line);
 }
 .part-filter.active {
-    border-color: #00d4ff;
-    color: #00d4ff;
+    border-color: var(--bp-yellow);
+    color: var(--bp-yellow);
+    background: rgba(40, 60, 20, 0.9);
 }
 .parts-list {
-    max-height: 400px;
+    max-height: 360px;
     overflow-y: auto;
+    border: 1px solid var(--bp-line-dim);
+    padding: 6px;
+    background: rgba(0, 15, 0, 0.4);
 }
 .part-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid #444;
-    border-radius: 4px;
-    padding: 10px;
-    margin-bottom: 8px;
+    background: rgba(10, 30, 10, 0.6);
+    border: 1px solid var(--bp-line-dim);
+    border-radius: 0;
+    padding: 8px;
+    margin-bottom: 6px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
 }
 .part-item:hover {
-    border-color: #00d4ff;
+    border-color: var(--bp-line);
+    background: rgba(20, 50, 20, 0.7);
 }
 .part-item .part-info {
     flex: 1;
 }
 .part-item .part-title {
     font-weight: bold;
-    font-size: 14px;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
 }
 .part-item .part-desc {
-    color: #888;
-    font-size: 11px;
+    color: var(--bp-line);
+    font-size: 10px;
     margin-top: 2px;
 }
 .part-item .part-level {
     color: #ffaa44;
-    font-size: 12px;
-    margin-left: 10px;
+    font-size: 11px;
+    margin-left: 8px;
+    font-family: 'Courier New', monospace;
 }
 .part-item .part-actions {
     display: flex;
-    gap: 5px;
+    gap: 4px;
 }
 .part-item button {
-    background: #00d4ff;
-    border: none;
-    padding: 4px 10px;
-    border-radius: 4px;
-    color: #000;
-    font-size: 11px;
+    background: rgba(30, 60, 30, 0.9);
+    border: 1px solid var(--bp-line);
+    padding: 3px 8px;
+    border-radius: 0;
+    color: var(--bp-yellow);
+    font-size: 10px;
     cursor: pointer;
+    font-family: 'Courier New', monospace;
+    text-transform: uppercase;
 }
 .part-item button:disabled {
-    background: #333;
+    background: rgba(30, 30, 30, 0.6);
+    border-color: #444;
     color: #666;
     cursor: not-allowed;
 }
 .part-item .btn-research {
-    background: #ffaa44;
+    background: rgba(60, 50, 20, 0.9);
+    border-color: #ffaa44;
+    color: #ffeb3b;
 }
 .part-detail {
-    margin-top: 15px;
-    padding: 15px;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 4px;
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(0, 15, 0, 0.5);
+    border: 1px solid var(--bp-line-dim);
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--bp-text);
 }
 .part-detail h4 {
-    color: #00d4ff;
-    margin: 0 0 10px 0;
+    color: var(--bp-yellow);
+    margin: 0 0 8px 0;
+    font-weight: normal;
+    letter-spacing: 1px;
 }
 .part-detail .detail-stat {
-    font-size: 12px;
-    color: #ccc;
-    margin: 3px 0;
+    font-size: 11px;
+    color: var(--bp-text);
+    margin: 2px 0;
 }
 
 /* 背包系统 */
