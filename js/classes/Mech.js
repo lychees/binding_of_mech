@@ -222,21 +222,21 @@ class Mech {
         const cos = Math.cos(this.bodyAngle);
         const sin = Math.sin(this.bodyAngle);
         
-        // 被钩爪拉拽时按 W/S 主动收/放绳索，进一步提升速度倍率
+        // 被钩爪拉拽时按 W/S 主动收/放绳索，速度远超机体本身移动
         const isHooked = hooks.some(h => h.state === 'hooked');
-        let hookSpeedBoost = isHooked ? 3.5 : 1;
-        let hookAccelerationBoost = isHooked ? 2.0 : 1;
+        let hookSpeedBoost = isHooked ? 6.0 : 1;
+        let hookAccelerationBoost = isHooked ? 3.0 : 1;
         if (isHooked) {
             if (keys['w'] || keys['W']) {
-                hookSpeedBoost *= 2.2;
-                hookAccelerationBoost *= 1.5;
+                hookSpeedBoost *= 2.5;
+                hookAccelerationBoost *= 1.8;
             } else if (keys['s'] || keys['S']) {
-                hookSpeedBoost *= 0.5;
-                hookAccelerationBoost *= 0.7;
+                hookSpeedBoost *= 0.4;
+                hookAccelerationBoost *= 0.6;
             }
         }
         const effectiveMaxSpeed = this.maxSpeed * hookSpeedBoost;
-        const effectiveAcceleration = Math.min(0.5, this.acceleration * hookAccelerationBoost);
+        const effectiveAcceleration = Math.min(0.8, this.acceleration * hookAccelerationBoost);
         
         const targetVX = (sin) * moveForward * effectiveMaxSpeed + cos * moveSide * effectiveMaxSpeed * 0.7;
         const targetVY = (-cos) * moveForward * effectiveMaxSpeed + sin * moveSide * effectiveMaxSpeed * 0.7;

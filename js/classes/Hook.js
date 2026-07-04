@@ -1,5 +1,5 @@
 import { keys, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT } from '../config.js';
-import { playHookSound } from '../audio.js';
+import { playHookSound, playHookHitSound } from '../audio.js';
 
 // mech 由主模块设置
 let mechRef = null;
@@ -13,13 +13,14 @@ class Hook {
         this.startX = x;
         this.startY = y;
         this.angle = angle;
-        this.speed = 30;
+        this.speed = 60;
         this.maxLength = 300;
         this.length = 0;
         this.state = 'flying'; // flying, hooked, retracting
         this.life = 120;
         this.hookX = x;
         this.hookY = y;
+        this.hitSoundPlayed = false;
     }
     
     update(mech) {

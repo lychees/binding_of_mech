@@ -157,6 +157,22 @@ export function playHookSound() {
     osc.stop(t + 0.15);
 }
 
+export function playHookHitSound() {
+    const context = getCtx();
+    const t = context.currentTime;
+    const osc = context.createOscillator();
+    const gain = context.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.exponentialRampToValueAtTime(80, t + 0.1);
+    gain.gain.setValueAtTime(0.15, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+    osc.connect(gain);
+    gain.connect(context.destination);
+    osc.start(t);
+    osc.stop(t + 0.15);
+}
+
 export function playRepairSound() {
     const context = getCtx();
     const t = context.currentTime;
