@@ -1193,10 +1193,14 @@ document.addEventListener('keydown', (e) => {
     keys[e.key] = true;
     if (e.key === ' ') {
         e.preventDefault();
-        if (mech && !isMultiplayer && !isOnlineGame()) mech.shoot();
-        if (mech && isOnlineGame()) {
-            mech.shoot();
-            broadcastAction('shoot');
+        // 激光炮在 Mech.update 中通过长按检测蓄力，这里不再直接调用 shoot
+        const active = mech || players.find(p => !p.isDead);
+        if (active && active.currentWeapon?.drawType !== 'laser') {
+            if (!isMultiplayer && !isOnlineGame()) active.shoot();
+            if (isOnlineGame()) {
+                active.shoot();
+                broadcastAction('shoot');
+            }
         }
     }
     if (e.key === 'f' || e.key === 'F') {
