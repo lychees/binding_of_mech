@@ -1277,7 +1277,7 @@ function renderCodexMechs(content) {
                 .map(s => ALL_MODULES[s.moduleId]?.name || s.moduleId)
                 .join(' / ');
             return `
-            <div class="upgrade-item" style="border-color:${tier.color}">
+            <div class="upgrade-item" style="border-color:${tier.color}; cursor:pointer;" onclick="showMechDetail('${bp.id}')">
                 <h4 style="color:${bp.color}">${bp.name}</h4>
                 <div class="level">${tier.name}${bp.starting ? ' · 初始机体' : ''}</div>
                 <div style="color:#aaa; font-size:12px; margin:6px 0;">${bp.description}</div>
@@ -1286,6 +1286,99 @@ function renderCodexMechs(content) {
             </div>
         `}).join('') + '</div>';
 }
+
+window.showMechDetail = function(blueprintId) {
+    const bp = MECH_BLUEPRINTS[blueprintId];
+    if (!bp) return;
+
+    const modal = document.getElementById('mechDetailModal');
+    const nameEl = document.getElementById('mechDetailName');
+    const descEl = document.getElementById('mechDetailDesc');
+    const statsEl = document.getElementById('mechDetailStats');
+    const canvas = document.getElementById('mechPreviewCanvas');
+    const ctx = canvas.getContext('2d');
+
+    nameEl.textContent = bp.name;
+    nameEl.style.color = bp.color;
+    descEl.textContent = bp.description;
+
+    const tier = MECH_BLUEPRINT_TIERS[bp.tier];
+    const build = window.calculateMechBuild ? window.calculateMechBuild(bp.mechBuild) : {};
+    const weaponNames = Object.values(bp.mechBuild)
+        .filter(s => s.moduleId.startsWith('W_'))
+        .map(s => ALL_MODULES[s.moduleId]?.name || s.moduleId)
+        .join('、');
+
+    statsEl.innerHTML = `
+        <div><strong style="color:${tier.color}">稀有度:</strong> ${tier.name}</div>
+        <div><strong>生命上限:</strong> ${Math.floor(build.maxHealth || 0)}</div>
+        <div><strong>能量上限:</strong> ${Math.floor(build.maxEnergy || 0)}</div>
+        <div><strong>装甲:</strong> ${Math.floor((build.armor || 0) * 100)}%</div>
+        <div><strong>最大速度:</strong> ${(build.maxSpeed || 0).toFixed(1)}</div>
+        <div><strong>装备武器:</strong> ${weaponNames}</div>
+        ${!bp.starting ? `<div><strong>解锁价格:</strong> ${bp.cost} 金币</div>` : ''}
+    `;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (window.Mech) {
+        const mech = new window.Mech(canvas.width / 2, canvas.height / 2);
+        mech.bodyAngle = 0;
+        mech.upperAngle = 0;
+        mech.weaponAngle = 0;
+        mech.bodyWidth = 30;
+        mech.bodyHeight = 25;
+        mech.upperWidth = 25;
+        mech.upperHeight = 20;
+        mech.walkCycle = 0;
+
+        const buildWeaponKeys = [];
+        const buildWeaponList = [];
+        for (const [slot, data] of Object.entries(bp.mechBuild)) {
+            if (slot.startsWith('weapon') && data.moduleId) {
+                const mod = ALL_MODULES[data.moduleId];
+                if (mod && mod.weaponKey && window.WEAPONS[mod.weaponKey]) {
+                    buildWeaponKeys.push(String(buildWeaponList.length + 1));
+                    buildWeaponList.push(window.WEAPONS[mod.weaponKey]);
+                }
+            }
+        }
+        if (buildWeaponList.length > 0) {
+            mech.weaponKeys = buildWeaponKeys;
+            mech.weaponList = buildWeaponList;
+            mech.currentWeapon = buildWeaponList[0];
+        }
+
+        ctx.save();
+        ctx.translate(0, 0);
+        const originalCtx = window.ctx;
+        window.ctx = ctx;
+        const originalCameraX = window.cameraX;
+        const originalCameraY = window.cameraY;
+        window.cameraX = 0;
+        window.cameraY = 0;
+
+        try {
+            mech.draw();
+        } catch (e) {
+            console.error('Preview draw failed', e);
+        }
+
+        window.ctx = originalCtx;
+        window.cameraX = originalCameraX;
+        window.cameraY = originalCameraY;
+        ctx.restore();
+    }
+
+    modal.style.display = 'flex';
+};
+
+window.closeMechDetail = function() {
+    const modal = document.getElementById('mechDetailModal');
+    if (modal) modal.style.display = 'none';
+};
 
 function renderCodexEnemies(content) {
     if (!ENEMY_TEMPLATES) {
