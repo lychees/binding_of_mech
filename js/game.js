@@ -650,7 +650,8 @@ function updateBullets() {
                 const cx = bullets[i].x + sin * clamped;
                 const cy = bullets[i].y - cos * clamped;
                 if (dist(enemies[j].x, enemies[j].y, cx, cy) < enemies[j].size + bullets[i].width) {
-                    enemies[j].takeHit(bullets[i].damage);
+                    const damage = bullets[i].getDamageAtDistance(clamped);
+                    enemies[j].takeHit(damage);
                     if (enemies[j].health <= 0) {
                         const template = ENEMY_TEMPLATES[enemies[j].templateKey];
                         if (template) spawnDrops(enemies[j].x, enemies[j].y, template, 'enemy');
