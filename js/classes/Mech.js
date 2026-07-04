@@ -175,9 +175,17 @@ class Mech extends Entity {
         this.dashMaxDuration = 10;
 
         this.isPilotEjected = false;
+        this.alreadyExploded = false;
     }
 
     update() {
+        if (this.isDead) {
+            for (let i = this.jetParticles.length - 1; i >= 0; i--) {
+                this.jetParticles[i].update();
+                if (this.jetParticles[i].life <= 0) this.jetParticles.splice(i, 1);
+            }
+            return;
+        }
         this.handleWeaponSwitch();
         if (this.fireCooldown > 0) this.fireCooldown--;
         this.updateHeat();
@@ -402,6 +410,28 @@ class Mech extends Entity {
     }
 
     draw() {
+        if (this.isDead) {
+            ctx.save();
+            ctx.translate(this.x - cameraX, this.y - cameraY);
+            ctx.rotate(this.bodyAngle);
+            ctx.fillStyle = '#3a3a3a';
+            ctx.fillRect(-this.bodyWidth / 2, -this.bodyHeight / 2, this.bodyWidth, this.bodyHeight);
+            ctx.fillStyle = '#2a2a2a';
+            ctx.beginPath();
+            ctx.arc(0, -5, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillRect(-this.upperWidth / 2, -this.upperHeight / 2 - 5, this.upperWidth, this.upperHeight);
+            ctx.strokeStyle = '#ff4400';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-12, -8);
+            ctx.lineTo(12, 8);
+            ctx.moveTo(12, -8);
+            ctx.lineTo(-12, 8);
+            ctx.stroke();
+            ctx.restore();
+            return;
+        }
         for (const fp of footprints) {
             ctx.save();
             ctx.translate(fp.x, fp.y);

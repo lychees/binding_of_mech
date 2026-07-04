@@ -301,9 +301,6 @@ function gameLoop() {
         }
     }
 
-    mech.update();
-    mech.draw();
-
     if (!isPilotActive) {
         for (const enemy of enemies) mech.resolveCollision(enemy);
         if (keys['x'] || keys['X']) {
@@ -318,8 +315,13 @@ function gameLoop() {
             return;
         }
     } else {
-        if (mech.isDead) destroyMech();
+        if (mech.isDead) {
+            destroyMech();
+        }
     }
+
+    mech.update();
+    mech.draw();
 
     if (isPilotActive && pilot) {
         pilot.update();
@@ -328,6 +330,7 @@ function gameLoop() {
         if (distToMech < 40 && (keys['g'] || keys['G'])) {
             if (mech.health <= 0) mech.health = mech.maxHealth * 0.3;
             mech.isDead = false;
+            mech.alreadyExploded = false;
             mech.isPilotEjected = false;
             mech.x = pilot.x;
             mech.y = pilot.y;
@@ -428,20 +431,16 @@ function ejectPilot() {
 
 function destroyMech() {
     if (!mech) return;
+    if (mech.alreadyExploded) return;
+    mech.alreadyExploded = true;
     playExplosionSound('large');
     particles.push(...createSpark(mech.x, mech.y, '#ff4444', 60, 7));
     particles.push(...createSpark(mech.x, mech.y, '#ff8800', 40, 5));
     particles.push(...createSpark(mech.x, mech.y, '#ffcc00', 30, 4));
-    obstacles.push({
-        x: mech.x - 25,
-        y: mech.y - 25,
-        width: 50,
-        height: 50,
-        type: 'wreck',
-        color: '#3a3a3a'
-    });
     mech.health = 0;
     mech.isDead = true;
+    mech.velocityX = 0;
+    mech.velocityY = 0;
 }
 
 function updateBullets() {

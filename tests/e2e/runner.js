@@ -289,6 +289,28 @@ async function runTests() {
         `);
         log('✓ 机甲移动更新无报错');
 
+        // 测试 10b：机甲死亡后不再移动，且不生成新障碍
+        const deathState = await client.evaluate(`
+            const beforeObs = obstacles.length;
+            const startX = mech.x;
+            const startY = mech.y;
+            mech.velocityX = 5;
+            mech.velocityY = 5;
+            mech.isDead = true;
+            mech.alreadyExploded = false;
+            for (let i = 0; i < 30; i++) mech.update();
+            JSON.stringify({
+                moved: Math.abs(mech.x - startX) > 0.1 || Math.abs(mech.y - startY) > 0.1,
+                velocityX: mech.velocityX,
+                velocityY: mech.velocityY,
+                obstacleDelta: obstacles.length - beforeObs
+            });
+        `);
+        const ds = JSON.parse(deathState.result.value);
+        assertTrue(!ds.moved, `机甲死亡后不应移动 (delta ${ds.velocityX.toFixed(2)}, ${ds.velocityY.toFixed(2)})`);
+        assertEq(ds.obstacleDelta, 0, '机甲死亡后不应生成新障碍');
+        log('✓ 机甲死亡后停止移动且不生成障碍');
+
         // 测试 11：控制台无严重错误
         const severeErrors = client.exceptions.filter(e =>
             e && e.exception && e.exception.description &&
