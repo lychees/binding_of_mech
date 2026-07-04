@@ -6,11 +6,15 @@ import { ALL_MODULES, MODULE_RARITY, calculateMechBuild, moduleUpgradeCost, modu
 import { getManufactureCost, getBlueprintResearchCost } from './blueprints.js';
 import { stopGame, startLevel } from './game.js';
 import { createFieldRow, createEditorSection, downloadJSON } from './utils.js';
+import NetworkManager from './net/NetworkManager.js';
+import { initOnlineGame, setNetworkManager, resetOnlineGame, handleNetworkMessage, isOnlineGame, isOnlineHost, getNetworkPing } from './net/OnlineGame.js';
 
 let playerSave = loadSave();
 let selectedAssemblySlot = null;
 let selectedFilter = 'all';
 let weaponEditorData = JSON.parse(JSON.stringify(WEAPONS));
+let netManager = null;
+let isHostFlag = false;
 
 export function getPlayerSave() { return playerSave; }
 export function setPlayerSave(s) { playerSave = s; }
@@ -19,10 +23,46 @@ export function getWeaponEditorData() { return weaponEditorData; }
 // ========== 页面切换 ==========
 export function initUI() {
     window.showMainMenu = () => {
-        ['mainMenu', 'levelSelect', 'hangar', 'weaponEditor', 'enemyEditorPage', 'levelEditorPage', 'gameContainer'].forEach(id => {
-            document.getElementById(id).style.display = id === 'mainMenu' ? 'flex' : 'none';
+        ['mainMenu', 'levelSelect', 'hangar', 'weaponEditor', 'enemyEditorPage', 'levelEditorPage', 'lobbyPage', 'gameContainer'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = id === 'mainMenu' ? 'flex' : 'none';
         });
         stopGame();
+    };
+
+    window.showLobby = () => {
+        document.getElementById('mainMenu').style.display = 'none';
+        document.getElementById('lobbyPage').style.display = 'flex';
+        resetLobbyUI();
+    };
+
+    window.createOnlineRoom = async () => {
+        netManager = initOnlineGame();
+        setupNetworkHandlers();
+        try {
+            await netManager.connect();
+            netManager.createRoom('Host');
+        } catch (e) {
+            alert('连接服务器失败，请确认 npm run server 已启动');
+        }
+    };
+
+    window.joinOnlineRoom = async () => {
+        const roomId = document.getElementById('joinRoomId').value.trim().toUpperCase();
+        if (!roomId) return alert('请输入房间号');
+        netManager = initOnlineGame();
+        setupNetworkHandlers();
+        try {
+            await netManager.connect();
+            netManager.joinRoom(roomId, 'Guest');
+        } catch (e) {
+            alert('连接服务器失败，请确认 npm run server 已启动');
+        }
+    };
+
+    window.startOnlineGame = () => {
+        if (!netManager || !isHostFlag) return;
+        netManager.startGame(1);
     };
 
     window.showLevelSelect = () => {
@@ -62,6 +102,58 @@ export function initUI() {
     };
 
     window.returnToMenu = window.showMainMenu;
+}
+
+function setupNetworkHandlers() {
+    if (!netManager) return;
+    netManager.onMessage = (msg) => {
+        if (msg.type === 'roomCreated') {
+            isHostFlag = true;
+            setNetworkManager(netManager, true);
+            document.getElementById('lobbyPanel').style.display = 'none';
+            document.getElementById('roomPanel').style.display = 'flex';
+            document.getElementById('roomIdDisplay').textContent = msg.roomId;
+            document.getElementById('netStatus').textContent = '已连接 (host)';
+        }
+        if (msg.type === 'roomJoined') {
+            isHostFlag = false;
+            setNetworkManager(netManager, false);
+            document.getElementById('lobbyPanel').style.display = 'none';
+            document.getElementById('roomPanel').style.display = 'flex';
+            document.getElementById('roomIdDisplay').textContent = msg.roomId;
+            document.getElementById('roomStatus').textContent = '等待 host 开始任务...';
+            document.getElementById('netStatus').textContent = '已连接 (guest)';
+        }
+        if (msg.type === 'peerJoined') {
+            document.getElementById('roomStatus').textContent = '玩家已加入';
+            document.getElementById('startOnlineBtn').style.display = 'block';
+        }
+        if (msg.type === 'gameStarted') {
+            document.getElementById('lobbyPage').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            const level = LEVELS.find(l => l.id === msg.levelId) || LEVELS[0];
+            startLevel(level, playerSave, false);
+        }
+        if (msg.type === 'error') {
+            alert(msg.message);
+        }
+        const gameState = { stopGame, enemies: window.enemies, drops: window.drops, evacuationPoint: window.evacuationPoint, playerSave };
+        handleNetworkMessage(msg, gameState);
+    };
+    netManager.onClose = () => {
+        document.getElementById('netStatus').textContent = '已断开';
+    };
+}
+
+function resetLobbyUI() {
+    document.getElementById('lobbyPanel').style.display = 'flex';
+    document.getElementById('roomPanel').style.display = 'none';
+    document.getElementById('startOnlineBtn').style.display = 'none';
+    document.getElementById('roomStatus').textContent = '等待玩家加入...';
+    document.getElementById('netStatus').textContent = '未连接';
+    document.getElementById('joinRoomId').value = '';
+    if (netManager) { netManager.disconnect(); netManager = null; }
+    resetOnlineGame();
 }
 
 // ========== 关卡选择 ==========

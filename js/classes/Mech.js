@@ -7,6 +7,7 @@ import Entity from './Entity.js';
 import Particle, { createFlame, createSpark, createJet, createSmoke } from './Particle.js';
 import Hook from './Hook.js';
 import { clamp, dist, normalize } from '../utils.js';
+import { broadcastAction } from '../net/OnlineGame.js';
 
 const WEAPON_RENDERERS = {
     vulcan(ctx, w, mech) {
@@ -219,6 +220,7 @@ class Mech extends Entity {
         if (idx >= 0 && idx < this.weaponKeys.length && this.weaponKeys[idx]) {
             this.currentWeapon = this.weaponList[idx];
             this.isSwinging = false;
+            if (this.playerTag !== 'remote') broadcastAction('weaponSwitch', { index: idx });
             return;
         }
         for (let i = 0; i < this.weaponKeys.length; i++) {
@@ -313,6 +315,7 @@ class Mech extends Entity {
                 this.dashCooldown = this.dashMaxCooldown;
                 this.dashDirectionX = n.x;
                 this.dashDirectionY = n.y;
+                if (this.playerTag !== 'remote') broadcastAction('dash', { dx: n.x, dy: n.y });
             }
         }
 

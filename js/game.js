@@ -16,6 +16,11 @@ import { rollBlueprintDrops } from './blueprints.js';
 import { dist, normalize } from './utils.js';
 import { getPlayerSave, setPlayerSave, getWeaponEditorData } from './ui.js';
 import { updateInputs, p1Input, p2Input, resetInputs } from './input.js';
+import {
+    initOnlineGame, setNetworkManager, resetOnlineGame, handleNetworkMessage,
+    isOnlineGame, isOnlineHost, getNetworkPing, syncLocalPlayer, syncWorldState,
+    updateRemotePlayer, broadcastAction, getRemotePlayer
+} from './net/OnlineGame.js';
 
 let _currentPlayerSave = null;
 
@@ -128,6 +133,12 @@ export function startLevel(level, playerSave, multiplayer = false) {
     import('./classes/Hook.js').then(m => m.setMechRef(mech));
 
     window.players = players;
+    window.LEVELS = LEVELS;
+    window.startLevel = startLevel;
+    window.broadcastAction = broadcastAction;
+    window.calculateMechBuild = calculateMechBuild;
+    window.setupWeapons = setupWeapons;
+    window.Mech = Mech;
     window.spawnDrops = spawnDrops;
 
     window.mouseX = canvas.width / 2;
@@ -355,8 +366,20 @@ function gameLoop() {
 
     for (const p of players) {
         if (p.isDead) continue;
-        p.update(p === players[0] ? p1Input : p2Input);
+        if (isOnlineGame() && p.playerTag === 'remote') continue;
+        const input = isOnlineGame() ? p1Input : (p === players[0] ? p1Input : p2Input);
+        p.update(input);
         p.draw();
+    }
+
+    if (isOnlineGame()) {
+        updateRemotePlayer();
+        const remote = getRemotePlayer();
+        if (remote && !remote.isDead) {
+            remote.draw();
+        }
+        syncLocalPlayer(mech);
+        syncWorldState({ enemies, drops, evacuationPoint });
     }
 
     // 玩家之间碰撞
@@ -434,10 +457,13 @@ function gameLoop() {
 
 function getCameraCenter() {
     if (players.length === 0) return { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
-    const alive = players.filter(p => !p.isDead);
-    const list = alive.length > 0 ? alive : players;
-    const x = list.reduce((s, p) => s + p.x, 0) / list.length;
-    const y = list.reduce((s, p) => s + p.y, 0) / list.length;
+    const remote = getRemotePlayer();
+    const list = [...players];
+    if (isOnlineGame() && remote) list.push(remote);
+    const alive = list.filter(p => !p.isDead);
+    const targets = alive.length > 0 ? alive : list;
+    const x = targets.reduce((s, p) => s + p.x, 0) / targets.length;
+    const y = targets.reduce((s, p) => s + p.y, 0) / targets.length;
     return { x, y };
 }
 
@@ -688,6 +714,16 @@ function updateHUD() {
     document.getElementById('hudMaterials').textContent = missionMaterials;
     document.getElementById('hudEnemies').textContent = enemies.length;
     document.getElementById('hudRepair').textContent = inventory.repairKits;
+
+    const onlineStatus = document.getElementById('onlineStatus');
+    const netPing = document.getElementById('netPing');
+    if (onlineStatus && isOnlineGame()) {
+        onlineStatus.style.display = 'block';
+        netPing.textContent = getNetworkPing();
+    } else if (onlineStatus) {
+        onlineStatus.style.display = 'none';
+    }
+
     const hudEvac = document.getElementById('hudEvac');
     if (hudEvac) {
         if (evacuationPoint?.active) {
@@ -715,6 +751,8 @@ function drawPlayerHealthBars() {
 
     const targets = isPilotActive && pilot ? [pilot] : players.filter(p => !p.isDead);
     if (targets.length === 0) targets.push(...players);
+    const remote = getRemotePlayer();
+    if (isOnlineGame() && remote) targets.push(remote);
 
     targets.forEach((target, idx) => {
         const barY = 10 + idx * (barHeight + gap + 8);
@@ -729,7 +767,7 @@ function drawPlayerHealthBars() {
         ctx.strokeRect(barX, barY, barWidth, barHeight);
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 12px monospace';
-        const tag = target.playerTag ? `P${target.playerTag === 'p1' ? '1' : '2'}` : 'Pilot';
+        let tag = target.playerTag ? `P${target.playerTag === 'p1' ? '1' : target.playerTag === 'remote' ? '远程' : '2'}` : 'Pilot';
         ctx.fillText(`${tag}: ${Math.ceil(target.health)} / ${Math.ceil(target.maxHealth)}`, barX + barWidth / 2 - 45, barY + 12);
 
         if (target.armor > 0) {
@@ -966,7 +1004,7 @@ function drawMinimap() {
     }
 
     for (const p of players) {
-        ctx.fillStyle = p.playerTag === 'p1' ? '#00d4ff' : '#ffaa44';
+        ctx.fillStyle = p.playerTag === 'p1' ? '#00d4ff' : p.playerTag === 'remote' ? '#ffaa44' : '#00ff88';
         ctx.beginPath();
         ctx.arc(mapX + p.x * scaleX, mapY + p.y * scaleY, 3, 0, Math.PI * 2);
         ctx.fill();
@@ -1018,11 +1056,19 @@ document.addEventListener('keydown', (e) => {
     keys[e.key] = true;
     if (e.key === ' ') {
         e.preventDefault();
-        if (mech && !isMultiplayer) mech.shoot();
+        if (mech && !isMultiplayer && !isOnlineGame()) mech.shoot();
+        if (mech && isOnlineGame()) {
+            mech.shoot();
+            broadcastAction('shoot');
+        }
     }
     if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
-        if (mech && !isMultiplayer) mech.fireHook();
+        if (mech && !isMultiplayer && !isOnlineGame()) mech.fireHook();
+        if (mech && isOnlineGame()) {
+            mech.fireHook();
+            broadcastAction('hook');
+        }
     }
     if (e.key === 'Shift') e.preventDefault();
     if (e.key === 'r' || e.key === 'R') {
@@ -1037,6 +1083,7 @@ document.addEventListener('keydown', (e) => {
     }
     if (e.key === 'Escape') {
         stopGame();
+        if (isOnlineGame()) resetOnlineGame();
         window.showMainMenu();
     }
 });
