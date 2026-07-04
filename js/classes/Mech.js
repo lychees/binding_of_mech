@@ -1,4 +1,4 @@
-import { keys, particles, footprints, bullets, hooks, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT } from '../config.js?v=2';
+import { keys, particles, footprints, bullets, hooks, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT } from '../config.js?v=2';
 import { playShootSound } from '../audio.js?v=2';
 import { WEAPONS } from '../weapons.js?v=2';
 import Bullet from './Bullet.js?v=2';
