@@ -557,6 +557,176 @@ export const ITEM_DEFS = {
         icon: '🎗️',
         description: '击败强大机甲后获得的荣誉象征',
         weight: 0.1
+    },
+
+    // 大型/重型收集品
+    engineBlock: {
+        id: 'engineBlock',
+        name: '机甲引擎总成',
+        type: ITEM_TYPES.MATERIAL,
+        width: 3,
+        height: 2,
+        maxStack: 1,
+        rarity: 'rare',
+        icon: '🚜',
+        description: '一台完整的机甲引擎，极其沉重，但价值很高',
+        weight: 25.0
+    },
+    armorPlating: {
+        id: 'armorPlating',
+        name: '重型装甲板',
+        type: ITEM_TYPES.MATERIAL,
+        width: 2,
+        height: 3,
+        maxStack: 2,
+        rarity: 'uncommon',
+        icon: '🧱',
+        description: '大块的复合装甲板，需要机甲协助搬运',
+        weight: 18.0
+    },
+    artilleryBarrel: {
+        id: 'artilleryBarrel',
+        name: '炮管残骸',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 4,
+        maxStack: 1,
+        rarity: 'rare',
+        icon: '🔫',
+        description: '一根扭曲但仍可回收的合金炮管',
+        weight: 22.0
+    },
+    reactorCore: {
+        id: 'reactorCore',
+        name: '微型反应堆',
+        type: ITEM_TYPES.MATERIAL,
+        width: 3,
+        height: 3,
+        maxStack: 1,
+        rarity: 'epic',
+        icon: '⚛️',
+        description: '仍在低功率运转的反应堆核心，极其危险且沉重',
+        weight: 40.0
+    },
+    trackedChassis: {
+        id: 'trackedChassis',
+        name: '履带底盘',
+        type: ITEM_TYPES.MATERIAL,
+        width: 4,
+        height: 2,
+        maxStack: 1,
+        rarity: 'uncommon',
+        icon: '⛓️',
+        description: '一组完整的履带底盘，可改装为重型载具',
+        weight: 30.0
+    },
+    sensorDish: {
+        id: 'sensorDish',
+        name: '雷达天线盘',
+        type: ITEM_TYPES.MATERIAL,
+        width: 3,
+        height: 3,
+        maxStack: 1,
+        rarity: 'rare',
+        icon: '📡',
+        description: '大型抛物面天线，占据大量背包空间',
+        weight: 15.0
+    },
+    fuelDrum: {
+        id: 'fuelDrum',
+        name: '燃料桶',
+        type: ITEM_TYPES.MATERIAL,
+        width: 2,
+        height: 2,
+        maxStack: 3,
+        rarity: 'common',
+        icon: '🛢️',
+        description: '装满暗星燃料衍生物的大桶，搬运会拖慢速度',
+        weight: 12.0
+    },
+    mechLeg: {
+        id: 'mechLeg',
+        name: '机甲腿部组件',
+        type: ITEM_TYPES.MATERIAL,
+        width: 2,
+        height: 4,
+        maxStack: 1,
+        rarity: 'uncommon',
+        icon: '🦿',
+        description: '一条完整的二足机甲腿，长而笨重',
+        weight: 20.0
+    },
+    cargoContainer: {
+        id: 'cargoContainer',
+        name: '物资集装箱',
+        type: ITEM_TYPES.QUEST,
+        width: 4,
+        height: 3,
+        maxStack: 1,
+        rarity: 'epic',
+        icon: '📦',
+        description: '未开启的战地物资箱，体积巨大但可能内含高价值物品',
+        weight: 35.0
+    },
+    turretBase: {
+        id: 'turretBase',
+        name: '炮塔基座',
+        type: ITEM_TYPES.MATERIAL,
+        width: 3,
+        height: 3,
+        maxStack: 1,
+        rarity: 'rare',
+        icon: '🏰',
+        description: '旋转炮台的厚重基座，内含精密传动结构',
+        weight: 28.0
+    },
+    gyroStabilizer: {
+        id: 'gyroStabilizer',
+        name: '重型陀螺仪',
+        type: ITEM_TYPES.MATERIAL,
+        width: 2,
+        height: 2,
+        maxStack: 2,
+        rarity: 'rare',
+        icon: '🎯',
+        description: '维持大型机甲平衡的核心部件，密度极高',
+        weight: 16.0
+    },
+    spentBattery: {
+        id: 'spentBattery',
+        name: '报废动力电池组',
+        type: ITEM_TYPES.MATERIAL,
+        width: 2,
+        height: 3,
+        maxStack: 1,
+        rarity: 'common',
+        icon: '🔋',
+        description: '一组失去活性但仍可回收的大型电池',
+        weight: 14.0
+    },
+    commsTower: {
+        id: 'commsTower',
+        name: '通讯塔段',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 4,
+        maxStack: 1,
+        rarity: 'uncommon',
+        icon: '🗼',
+        description: '细长的通讯塔金属段，携带时很占空间',
+        weight: 10.0
+    },
+    salvageAnchor: {
+        id: 'salvageAnchor',
+        name: '打捞锚',
+        type: ITEM_TYPES.QUEST,
+        width: 3,
+        height: 2,
+        maxStack: 1,
+        rarity: 'legendary',
+        icon: '⚓',
+        description: '重型打捞用的合金锚，极其沉重，收藏家愿意出高价收购',
+        weight: 50.0
     }
 };
 
