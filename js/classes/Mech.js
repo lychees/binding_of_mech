@@ -10,6 +10,15 @@ import Hook from './Hook.js?v=2';
 import { clamp, dist, normalize } from '../utils.js?v=2';
 import { broadcastAction } from '../net/OnlineGame.js?v=2';
 
+function shadeColor(color, percent) {
+    const num = parseInt(color.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = Math.min(255, Math.max(0, (num >> 16) + amt));
+    const G = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amt));
+    const B = Math.min(255, Math.max(0, (num & 0x0000FF) + amt));
+    return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+}
+
 const WEAPON_RENDERERS = {
     vulcan(ctx, w, mech) {
         ctx.fillStyle = w.color;
@@ -198,6 +207,18 @@ class Mech extends Entity {
         this.isPilotEjected = false;
         this.alreadyExploded = false;
         this.inventory = null;
+
+        // 视觉差异化参数，由蓝图/模块应用后覆盖
+        this.variant = 'standard';
+        this.color = '#00d4ff';
+        this.secondaryColor = '#4a5568';
+        this.coreColor = '#a0d0f0';
+        this.hasShoulderArmor = false;
+        this.hasBackpack = false;
+        this.legStyle = 'biped';
+        this.visorShape = 'round';
+        this.antennaCount = 0;
+        this.extraPlating = 0;
     }
 
     update(input = null) {
@@ -557,11 +578,12 @@ class Mech extends Entity {
     }
 
     draw() {
+        const sc = (c, p) => shadeColor(c, p);
         if (this.isDead) {
             ctx.save();
             ctx.translate(this.x - cameraX, this.y - cameraY);
             ctx.rotate(this.bodyAngle);
-            ctx.fillStyle = '#3a3a3a';
+            ctx.fillStyle = sc(this.secondaryColor, -30);
             ctx.fillRect(-this.bodyWidth / 2, -this.bodyHeight / 2, this.bodyWidth, this.bodyHeight);
             ctx.fillStyle = '#2a2a2a';
             ctx.beginPath();
@@ -606,10 +628,23 @@ class Mech extends Entity {
         const leftKnee = Math.sin(this.walkCycle + Math.PI * 0.5) * 5;
         const rightKnee = Math.sin(this.walkCycle + Math.PI * 1.5) * 5;
 
+        const bodyW = this.bodyWidth + this.extraPlating * 4;
+        const bodyH = this.bodyHeight + this.extraPlating * 2;
+
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.beginPath();
-        ctx.ellipse(0, 25, 25, 10, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 25, 25 + this.extraPlating * 2, 10, 0, 0, Math.PI * 2);
         ctx.fill();
+
+        if (this.hasBackpack) {
+            ctx.save();
+            ctx.rotate(this.bodyAngle);
+            ctx.fillStyle = sc(this.secondaryColor, -20);
+            ctx.fillRect(-10, -bodyH / 2 - 12, 20, 10);
+            ctx.fillStyle = sc(this.color, 10);
+            ctx.fillRect(-6, -bodyH / 2 - 10, 12, 4);
+            ctx.restore();
+        }
 
         ctx.save();
         ctx.rotate(this.bodyAngle);
@@ -623,37 +658,100 @@ class Mech extends Entity {
 
         ctx.save();
         ctx.rotate(this.bodyAngle);
-        ctx.fillStyle = '#4a5568';
-        ctx.fillRect(-this.bodyWidth / 2, -this.bodyHeight / 2, this.bodyWidth, this.bodyHeight);
-        ctx.fillStyle = '#2d3748';
-        ctx.fillRect(-this.bodyWidth / 2 + 3, -this.bodyHeight / 2 + 3, this.bodyWidth - 6, this.bodyHeight - 6);
-        ctx.strokeStyle = '#5a6578';
+
+        ctx.fillStyle = this.secondaryColor;
+        ctx.fillRect(-bodyW / 2, -bodyH / 2, bodyW, bodyH);
+        ctx.fillStyle = sc(this.secondaryColor, 15);
+        ctx.fillRect(-bodyW / 2 + 4, -bodyH / 2 + 4, bodyW - 8, bodyH - 8);
+
+        ctx.strokeStyle = sc(this.secondaryColor, 30);
         ctx.lineWidth = 1;
         ctx.beginPath();
         for (const y of [-8, 0, 8]) {
-            ctx.moveTo(-10, y);
-            ctx.lineTo(10, y);
+            ctx.moveTo(-bodyW / 2 + 6, y);
+            ctx.lineTo(bodyW / 2 - 6, y);
         }
         ctx.stroke();
+
+        if (this.extraPlating > 0) {
+            ctx.strokeStyle = sc(this.color, 20);
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-bodyW / 2, -bodyH / 2, bodyW, bodyH);
+            for (let i = 0; i < this.extraPlating; i++) {
+                ctx.fillStyle = sc(this.secondaryColor, -10 - i * 8);
+                ctx.fillRect(-bodyW / 2 + 2 + i * 4, bodyH / 2 - 6 - i * 4, bodyW - 4 - i * 8, 4);
+            }
+        }
+
+        const headSize = this.variant === 'heavy' ? 18 : (this.variant === 'light' ? 14 : 16);
+        const headY = -bodyH / 2 - 8;
+        ctx.fillStyle = sc(this.secondaryColor, -10);
+        if (this.visorShape === 'visor') {
+            ctx.fillRect(-headSize / 2, headY, headSize, 8);
+        } else if (this.visorShape === 'dome') {
+            ctx.beginPath();
+            ctx.arc(0, headY + 4, headSize / 2, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            ctx.beginPath();
+            ctx.arc(0, headY + 4, headSize / 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(0, headY + 4, headSize / 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (this.antennaCount > 0) {
+            ctx.strokeStyle = sc(this.secondaryColor, 30);
+            ctx.lineWidth = 2;
+            for (let i = 0; i < this.antennaCount; i++) {
+                const side = i % 2 === 0 ? -1 : 1;
+                const x = side * (10 + i * 3);
+                ctx.beginPath();
+                ctx.moveTo(x, -bodyH / 2);
+                ctx.lineTo(x + side * 3, -bodyH / 2 - 14 - i * 4);
+                ctx.stroke();
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(x + side * 3, -bodyH / 2 - 14 - i * 4, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
         ctx.restore();
 
         ctx.save();
         ctx.rotate(this.bodyAngle + this.upperAngle);
-        ctx.fillStyle = '#5a6a7d';
+        ctx.fillStyle = sc(this.secondaryColor, 10);
         ctx.beginPath();
         ctx.arc(0, 0, 8, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#5a7a9a';
+        ctx.fillStyle = sc(this.secondaryColor, 20);
         ctx.fillRect(-this.upperWidth / 2, -this.upperHeight / 2 - 5, this.upperWidth, this.upperHeight);
-        ctx.fillStyle = '#7a9aba';
+
+        ctx.fillStyle = this.coreColor;
         ctx.beginPath();
         ctx.arc(0, -5, 8, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#a0d0f0';
+        ctx.fillStyle = '#ffffff';
+        ctx.globalAlpha = 0.4;
         ctx.beginPath();
         ctx.arc(0, -5, 5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#4a6a8a';
+        ctx.globalAlpha = 1;
+
+        if (this.hasShoulderArmor) {
+            ctx.fillStyle = sc(this.secondaryColor, -15);
+            ctx.fillRect(-this.upperWidth / 2 - 10, -this.upperHeight / 2 - 8, 12, 26);
+            ctx.fillRect(this.upperWidth / 2 - 2, -this.upperHeight / 2 - 8, 12, 26);
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(-this.upperWidth / 2 - 10, -this.upperHeight / 2 - 8, 12, 26);
+            ctx.strokeRect(this.upperWidth / 2 - 2, -this.upperHeight / 2 - 8, 12, 26);
+        }
+
+        ctx.fillStyle = sc(this.secondaryColor, -10);
         ctx.fillRect(-this.upperWidth / 2 - 3, -this.upperHeight / 2 - 3, 6, 12);
         ctx.fillRect(this.upperWidth / 2 - 3, -this.upperHeight / 2 - 3, 6, 12);
 
@@ -709,31 +807,68 @@ class Mech extends Entity {
     }
 
     drawLeg(xOffset, footOffset, kneeOffset) {
-        ctx.strokeStyle = '#4a5568';
+        const sc = (c, p) => shadeColor(c, p);
+        if (this.legStyle === 'tracked') {
+            ctx.fillStyle = sc(this.secondaryColor, -20);
+            ctx.fillRect(xOffset - this.legWidth / 2 - 3, 4, this.legWidth + 6, this.legLength + 6);
+            ctx.fillStyle = sc(this.secondaryColor, 10);
+            ctx.fillRect(xOffset - this.legWidth / 2, 8, this.legWidth, this.legLength - 2);
+            ctx.fillStyle = '#1a1a1a';
+            ctx.beginPath();
+            ctx.arc(xOffset, this.legLength + 6, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(xOffset, this.legLength * 0.55, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = sc(this.color, 20);
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(xOffset - this.legWidth / 2, 8);
+            ctx.lineTo(xOffset - this.legWidth / 2, this.legLength + 2);
+            ctx.moveTo(xOffset + this.legWidth / 2, 8);
+            ctx.lineTo(xOffset + this.legWidth / 2, this.legLength + 2);
+            ctx.stroke();
+            return;
+        }
+
+        const reverse = this.legStyle === 'reverseJoint';
+        const kneeX = reverse ? xOffset - kneeOffset * 0.3 : xOffset + kneeOffset * 0.3;
+
+        ctx.strokeStyle = this.secondaryColor;
         ctx.lineWidth = this.legWidth;
         ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(xOffset, 0);
-        ctx.lineTo(xOffset + kneeOffset * 0.3, this.legLength * 0.5);
+        ctx.lineTo(kneeX, this.legLength * 0.5);
         ctx.stroke();
 
         ctx.beginPath();
-        ctx.moveTo(xOffset + kneeOffset * 0.3, this.legLength * 0.5);
+        ctx.moveTo(kneeX, this.legLength * 0.5);
         ctx.lineTo(xOffset + footOffset * 0.2, this.legLength + footOffset * 0.1);
         ctx.stroke();
 
-        ctx.fillStyle = '#5a6a7d';
+        ctx.fillStyle = sc(this.secondaryColor, 20);
         ctx.beginPath();
         ctx.arc(xOffset, 0, 5, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(xOffset + kneeOffset * 0.3, this.legLength * 0.5, 4, 0, Math.PI * 2);
+        ctx.arc(kneeX, this.legLength * 0.5, 4, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = '#3a4558';
+        ctx.fillStyle = sc(this.secondaryColor, -20);
         ctx.save();
         ctx.translate(xOffset + footOffset * 0.2, this.legLength + footOffset * 0.1);
-        ctx.fillRect(-6, -2, 12, 6);
+        if (reverse) {
+            ctx.beginPath();
+            ctx.moveTo(-7, -3);
+            ctx.lineTo(7, -3);
+            ctx.lineTo(5, 5);
+            ctx.lineTo(-5, 5);
+            ctx.closePath();
+            ctx.fill();
+        } else {
+            ctx.fillRect(-6, -2, 12, 6);
+        }
         ctx.restore();
     }
 

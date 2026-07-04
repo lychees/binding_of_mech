@@ -330,7 +330,17 @@ export function calculateMechBuild(mechBuild) {
         shield: 0,
         repairRate: 0,
         totalWeight: 0,
-        weapons: []
+        weapons: [],
+        visualVariant: 'standard',
+        visualColor: '#00d4ff',
+        visualSecondaryColor: '#4a5568',
+        coreColor: '#a0d0f0',
+        visorShape: 'round',
+        legStyle: 'biped',
+        hasShoulderArmor: false,
+        hasBackpack: false,
+        antennaCount: 0,
+        extraPlating: 0
     };
 
     const parts = [
@@ -385,7 +395,87 @@ export function calculateMechBuild(mechBuild) {
         result.maxHealth *= Math.max(0.7, 1 - penalty * 0.3);
     }
 
+    deriveVisualsFromBuild(result, mechBuild);
+
     return result;
+}
+
+function deriveVisualsFromBuild(result, mechBuild) {
+    const chassis = ALL_MODULES[mechBuild.chassis?.moduleId];
+    const head = ALL_MODULES[mechBuild.head?.moduleId];
+    const legs = ALL_MODULES[mechBuild.legs?.moduleId];
+    const core = ALL_MODULES[mechBuild.core?.moduleId];
+
+    if (chassis) {
+        switch (chassis.id) {
+            case 'C_HEAVY':
+                result.visualVariant = 'heavy';
+                result.visualColor = '#aa4444';
+                result.visualSecondaryColor = '#4a2a2a';
+                result.coreColor = '#ff8888';
+                break;
+            case 'C_LIGHT':
+                result.visualVariant = 'light';
+                result.visualColor = '#00d4ff';
+                result.visualSecondaryColor = '#2a4a5a';
+                result.coreColor = '#a0f0ff';
+                break;
+            case 'C_ASSAULT':
+                result.visualVariant = 'assault';
+                result.visualColor = '#ff6644';
+                result.visualSecondaryColor = '#5a2a1a';
+                result.coreColor = '#ffaa88';
+                break;
+            default:
+                result.visualVariant = 'standard';
+                result.visualColor = '#00d4ff';
+                result.visualSecondaryColor = '#4a5568';
+                result.coreColor = '#a0d0f0';
+        }
+    }
+
+    if (head) {
+        switch (head.id) {
+            case 'H_SNIPER':
+                result.visorShape = 'visor';
+                break;
+            case 'H_EWAR':
+                result.visorShape = 'dome';
+                break;
+            default:
+                result.visorShape = 'round';
+        }
+    }
+
+    if (legs) {
+        switch (legs.id) {
+            case 'L_HEAVY':
+                result.legStyle = 'tracked';
+                break;
+            case 'L_SPEED':
+                result.legStyle = 'reverseJoint';
+                break;
+            default:
+                result.legStyle = 'biped';
+        }
+    }
+
+    if (core) {
+        switch (core.id) {
+            case 'CO_SHIELD':
+                result.hasShoulderArmor = true;
+                break;
+            case 'CO_REPAIR':
+                result.hasBackpack = true;
+                break;
+            case 'CO_OVERDRIVE':
+                result.antennaCount = 2;
+                break;
+        }
+    }
+
+    if (result.armor >= 0.25) result.extraPlating = 1;
+    if (result.armor >= 0.4) result.extraPlating = 2;
 }
 
 export function moduleUpgradeCost(moduleId, currentLevel) {

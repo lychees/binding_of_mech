@@ -1334,6 +1334,17 @@ window.showMechDetail = function(blueprintId) {
         mech.upperHeight = 20;
         mech.walkCycle = 0;
 
+        mech.variant = build.visualVariant || 'standard';
+        mech.color = bp.color || build.visualColor || '#00d4ff';
+        mech.secondaryColor = build.visualSecondaryColor || '#4a5568';
+        mech.coreColor = build.coreColor || mech.color;
+        mech.legStyle = build.legStyle || 'biped';
+        mech.hasShoulderArmor = !!build.hasShoulderArmor;
+        mech.hasBackpack = !!build.hasBackpack;
+        mech.antennaCount = build.antennaCount || 0;
+        mech.extraPlating = build.extraPlating || 0;
+        mech.visorShape = build.visorShape || 'round';
+
         const buildWeaponKeys = [];
         const buildWeaponList = [];
         for (const [slot, data] of Object.entries(bp.mechBuild)) {

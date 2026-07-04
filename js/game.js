@@ -138,7 +138,7 @@ export function startLevel(level, playerSave, multiplayer = false) {
 
     mech = createPlayerMech(spawnX - (multiplayer ? 60 : 0), spawnY, build, playerSave, 'p1');
     mech.inventory = mechBag;
-    if (activeMech?.color) mech.bodyColor = activeMech.color;
+    if (activeMech?.color) mech.color = activeMech.color;
     if (activePilot) applyPilotToMech(mech, activePilot);
     players.push(mech);
     window.mech = mech;
@@ -207,7 +207,18 @@ function createPlayerMech(x, y, build, playerSave, tag) {
         maxShield: build.shield,
         shield: build.shield,
         repairRate: build.repairRate,
-        isDead: false
+        isDead: false,
+
+        variant: build.visualVariant || 'standard',
+        color: build.visualColor || '#00d4ff',
+        secondaryColor: build.visualSecondaryColor || '#4a5568',
+        coreColor: build.coreColor || '#a0d0f0',
+        legStyle: build.legStyle || 'biped',
+        hasShoulderArmor: !!build.hasShoulderArmor,
+        hasBackpack: !!build.hasBackpack,
+        antennaCount: build.antennaCount || 0,
+        extraPlating: build.extraPlating || 0,
+        visorShape: build.visorShape || 'round'
     });
     setupWeapons(build, playerSave, m);
     return m;
