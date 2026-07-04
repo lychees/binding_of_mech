@@ -22,6 +22,14 @@ export function saveGame(data) {
 export function migrateSave(data) {
     if (!data.mechBuild) {
         data.mechBuild = createDefaultMechBuild();
+    } else {
+        // 确保机甲组装武器槽位有装备
+        if (!data.mechBuild.weaponLeft || !data.mechBuild.weaponLeft.moduleId) {
+            data.mechBuild.weaponLeft = { moduleId: 'W_VULCAN', level: 1 };
+        }
+        if (!data.mechBuild.weaponRight || !data.mechBuild.weaponRight.moduleId) {
+            data.mechBuild.weaponRight = { moduleId: 'W_BEAM_SWORD', level: 1 };
+        }
     }
     if (!data.partsInventory) {
         data.partsInventory = createDefaultPartsInventory();
@@ -49,9 +57,24 @@ export function migrateSave(data) {
     if (!data.materials) {
         data.materials = 0;
     }
-    // 兼容旧版武器系统
-    if (!data.weaponModules) {
-        data.weaponModules = {};
+    if (!data.weapons) {
+        data.weapons = {
+            VULCAN: { unlocked: true, level: 1 },
+            SHOTGUN: { unlocked: true, level: 1 },
+            CANNON: { unlocked: true, level: 1 },
+            LASER: { unlocked: true, level: 1 },
+            BEAM_SWORD: { unlocked: true, level: 1 }
+        };
+    } else {
+        // 确保旧版所有武器已解锁
+        const weaponKeys = ['VULCAN', 'SHOTGUN', 'CANNON', 'LASER', 'BEAM_SWORD'];
+        for (const w of weaponKeys) {
+            if (!data.weapons[w]) data.weapons[w] = { unlocked: true, level: 1 };
+            else {
+                data.weapons[w].unlocked = true;
+                if (!data.weapons[w].level) data.weapons[w].level = 1;
+            }
+        }
     }
     return data;
 }
@@ -64,7 +87,7 @@ export function createDefaultMechBuild() {
         legs: { moduleId: 'L_STANDARD', level: 1 },
         core: { moduleId: 'CO_STANDARD', level: 1 },
         weaponLeft: { moduleId: 'W_VULCAN', level: 1 },
-        weaponRight: { moduleId: 'W_VULCAN', level: 1 }
+        weaponRight: { moduleId: 'W_BEAM_SWORD', level: 1 }
     };
 }
 
@@ -104,10 +127,10 @@ export function createDefaultSave() {
         },
         weapons: {
             VULCAN: { unlocked: true, level: 1 },
-            SHOTGUN: { unlocked: false, level: 0 },
-            CANNON: { unlocked: false, level: 0 },
-            LASER: { unlocked: false, level: 0 },
-            BEAM_SWORD: { unlocked: false, level: 0 }
+            SHOTGUN: { unlocked: true, level: 1 },
+            CANNON: { unlocked: true, level: 1 },
+            LASER: { unlocked: true, level: 1 },
+            BEAM_SWORD: { unlocked: true, level: 1 }
         },
         levelsCompleted: [],
         highestLevel: 0
