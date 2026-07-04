@@ -12,6 +12,7 @@ import Particle from './classes/Particle.js';
 import Hook from './classes/Hook.js';
 import { initAudio, playShootSound, playExplosionSound, playHitSound, playDashSound, playHookSound, playRepairSound, playPickupSound, playBGM, stopBGM } from './audio.js';
 import { ALL_MODULES, MODULE_SLOTS, MODULE_RARITY, calculateMechBuild, moduleUpgradeCost, moduleResearchCost, salvageModule } from './modules.js';
+import { BLUEPRINT_TIERS, BLUEPRINT_DROPS, getManufactureCost, rollBlueprintDrops, getBlueprintResearchCost } from './blueprints.js';
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -424,10 +425,22 @@ function stopGame() {
 }
 
 function showMissionResult(won) {
+    const blueprintDrops = won ? rollBlueprintDrops(currentLevel ? currentLevel.id : 1) : [];
     const result = document.getElementById('missionResult');
     document.getElementById('resultTitle').textContent = won ? '任务完成' : '任务失败';
     document.getElementById('rewardMoney').textContent = missionMoney;
     document.getElementById('rewardExp').textContent = missionExp;
+    
+    // 显示蓝图掉落
+    if (blueprintDrops.length > 0) {
+        for (const bp of blueprintDrops) {
+            if (!playerSave.blueprints.includes(bp)) {
+                playerSave.blueprints.push(bp);
+            }
+        }
+        const bpNames = blueprintDrops.map(id => ALL_MODULES[id]?.name || id).join(', ');
+        setTimeout(() => alert('获得蓝图: ' + bpNames), 100);
+    }
     result.style.display = 'block';
     
     if (won) {
@@ -1456,15 +1469,16 @@ function renderPartsList() {
     
     const inventory = playerSave.partsInventory || {};
     const researched = playerSave.researchedModules || [];
+    const blueprints = playerSave.blueprints || [];
     
     for (const moduleId in ALL_MODULES) {
         const m = ALL_MODULES[moduleId];
         const owned = inventory[moduleId];
         const isResearched = researched.includes(moduleId);
+        const hasBlueprint = blueprints.includes(moduleId);
         
         if (selectedFilter !== 'all' && m.slot !== selectedFilter) continue;
         if (selectedAssemblySlot) {
-            // 根据槽位过滤
             const slotMap = {
                 chassis: 'chassis', head: 'head', arms: 'arms', legs: 'legs',
                 core: 'core', weaponLeft: 'weapon', weaponRight: 'weapon'
@@ -1475,16 +1489,21 @@ function renderPartsList() {
         const item = document.createElement('div');
         item.className = 'part-item';
         const rarity = MODULE_RARITY[m.rarity];
+        const researchCost = getBlueprintResearchCost(moduleId);
+        const makeCost = getManufactureCost(moduleId);
+        const canResearch = hasBlueprint && !isResearched && playerSave.money >= researchCost.money && playerSave.materials >= researchCost.materials;
+        const canManufacture = isResearched && playerSave.money >= makeCost.money && playerSave.materials >= makeCost.materials;
         item.innerHTML = `
-            <div class="part-info" onclick="showPartDetail('${moduleId}')">
-                <div class="part-title" style="color:${rarity.color}">${m.name}</div>
-                <div class="part-desc">${m.description}</div>
+            <div class="part-info" onclick="showPartDetail('\${moduleId}')">
+                <div class="part-title" style="color:\${rarity.color}">\${m.name}</div>
+                <div class="part-desc">\${m.description}</div>
             </div>
-            <div class="part-level">${owned ? '拥有 Lv.' + owned.level : isResearched ? '已研发' : '未研发'}</div>
+            <div class="part-level">\${owned ? '拥有 Lv.' + owned.level : isResearched ? '已研发' : hasBlueprint ? '有蓝图' : '缺蓝图'}</div>
             <div class="part-actions">
-                <button ${owned && selectedAssemblySlot ? '' : 'disabled'} onclick="equipModule('${moduleId}')">装备</button>
-                <button ${owned && (owned.level < m.maxLevel) && playerSave.money >= moduleUpgradeCost(moduleId, owned.level) ? '' : 'disabled'} onclick="upgradeModule('${moduleId}')">升级</button>
-                <button class="btn-research" ${!isResearched && playerSave.money >= moduleResearchCost(moduleId) ? '' : 'disabled'} onclick="researchModule('${moduleId}')">${isResearched ? '已研发' : '研发'}</button>
+                <button ${owned && selectedAssemblySlot ? '' : 'disabled'} onclick="equipModule('\${moduleId}')">装备</button>
+                <button ${owned && (owned.level < m.maxLevel) && playerSave.money >= moduleUpgradeCost(moduleId, owned.level) ? '' : 'disabled'} onclick="upgradeModule('\${moduleId}')">升级</button>
+                <button class="btn-research" ${canResearch ? '' : 'disabled'} onclick="researchModule('\${moduleId}')">${isResearched ? '已研发' : '研发'}</button>
+                <button ${canManufacture ? '' : 'disabled'} onclick="manufactureModule('\${moduleId}')">制造</button>
             </div>
         `;
         list.appendChild(item);
@@ -1589,17 +1608,45 @@ window.upgradeModule = function(moduleId) {
 window.researchModule = function(moduleId) {
     const researched = playerSave.researchedModules;
     if (researched.includes(moduleId)) return;
-    const cost = moduleResearchCost(moduleId);
-    if (playerSave.money < cost) return;
+    const hasBlueprint = playerSave.blueprints.includes(moduleId);
+    const cost = getBlueprintResearchCost(moduleId);
+    if (playerSave.money < cost.money || playerSave.materials < cost.materials) return;
+    if (!hasBlueprint) {
+        alert('缺少该模块的蓝图，请通过任务获取。');
+        return;
+    }
     
-    playerSave.money -= cost;
+    playerSave.money -= cost.money;
+    playerSave.materials -= cost.materials;
     researched.push(moduleId);
     // 研发成功后获得该零件 1 个
     if (!playerSave.partsInventory[moduleId]) {
         playerSave.partsInventory[moduleId] = { level: 1, count: 0 };
     }
     playerSave.partsInventory[moduleId].count++;
+    // 消耗蓝图
+    playerSave.blueprints = playerSave.blueprints.filter(id => id !== moduleId);
     
+    saveGame(playerSave);
+    renderAssemblyPanel();
+};
+
+
+window.manufactureModule = function(moduleId) {
+    const researched = playerSave.researchedModules;
+    if (!researched.includes(moduleId)) {
+        alert('请先研发该模块的蓝图。');
+        return;
+    }
+    const cost = getManufactureCost(moduleId);
+    if (playerSave.money < cost.money || playerSave.materials < cost.materials) return;
+    
+    playerSave.money -= cost.money;
+    playerSave.materials -= cost.materials;
+    if (!playerSave.partsInventory[moduleId]) {
+        playerSave.partsInventory[moduleId] = { level: 1, count: 0 };
+    }
+    playerSave.partsInventory[moduleId].count++;
     saveGame(playerSave);
     renderAssemblyPanel();
 };

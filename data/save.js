@@ -29,6 +29,9 @@ export function migrateSave(data) {
     if (!data.researchedModules) {
         data.researchedModules = ['C_STANDARD', 'H_STANDARD', 'A_STANDARD', 'L_STANDARD', 'CO_STANDARD', 'W_VULCAN'];
     }
+    if (!data.blueprints) {
+        data.blueprints = [];
+    }
     if (!data.materials) {
         data.materials = 0;
     }
@@ -72,6 +75,7 @@ export function createDefaultSave() {
         mechBuild: createDefaultMechBuild(),
         partsInventory: createDefaultPartsInventory(),
         researchedModules: ['C_STANDARD', 'H_STANDARD', 'A_STANDARD', 'L_STANDARD', 'CO_STANDARD', 'W_VULCAN'],
+        blueprints: [],
         // 保留旧版字段用于兼容
         mech: {
             maxHealth: 100,
