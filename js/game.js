@@ -18,7 +18,7 @@ import { ALL_MODULES, calculateMechBuild } from './modules.js?v=2';
 import { rollBlueprintDrops } from './blueprints.js?v=2';
 import { dist, normalize } from './utils.js?v=2';
 import { getPlayerSave, setPlayerSave, getWeaponEditorData } from './ui.js?v=2';
-import { updateInputs, resetInputs } from './engine/InputSystem.js?v=2';
+import { updateInputs, resetInputs, getInputState } from './engine/InputSystem.js?v=2';
 import { gameTick, updateParticles, updateHooks } from './engine/GameLoopSystem.js?v=2';
 import {
     initOnlineGame, setNetworkManager, resetOnlineGame, handleNetworkMessage,
