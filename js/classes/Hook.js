@@ -84,11 +84,11 @@ class Hook {
                 mech.velocityY *= 0.5;
             }
             
-            // 保持轻微拉拽力让绳索绷紧
-            if (dist > maxRopeLength * 0.6) {
-                const pullSpeed = 8;
-                mech.velocityX += (dx / dist) * pullSpeed * 0.2;
-                mech.velocityY += (dy / dist) * pullSpeed * 0.2;
+            // 保持拉拽力让绳索绷紧
+            if (dist > maxRopeLength * 0.5) {
+                const pullSpeed = 20;
+                mech.velocityX += (dx / dist) * pullSpeed * 0.3;
+                mech.velocityY += (dy / dist) * pullSpeed * 0.3;
             }
         } else if (this.state === 'retracting') {
             this.length -= this.speed * 1.5;
