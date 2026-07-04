@@ -10,6 +10,7 @@ import Bullet from './classes/Bullet.js';
 import LaserBeam from './classes/LaserBeam.js';
 import Particle from './classes/Particle.js';
 import Hook from './classes/Hook.js';
+import Fortress from './classes/Fortress.js';
 import { initAudio, playShootSound, playExplosionSound, playHitSound, playDashSound, playHookSound, playRepairSound, playPickupSound, playBGM, stopBGM } from './audio.js';
 import { ALL_MODULES, MODULE_SLOTS, MODULE_RARITY, calculateMechBuild, moduleUpgradeCost, moduleResearchCost, salvageModule } from './modules.js';
 import { BLUEPRINT_TIERS, BLUEPRINT_DROPS, getManufactureCost, rollBlueprintDrops, getBlueprintResearchCost } from './blueprints.js';
@@ -30,6 +31,8 @@ let missionMoney = 0;
 let missionExp = 0;
 let gameRunning = false;
 let animationId = null;
+let fortress = null;
+let fortressMinions = [];
 
 // 玩家存档
 let playerSave = loadSave();
@@ -289,6 +292,13 @@ function startLevel(level) {
     // 生成敌人
     generateEnemiesForLevel(level);
     
+    // 高等级关卡生成 BOSS 要塞
+    fortress = null;
+    fortressMinions = [];
+    if (level.id >= 3 && Math.random() < 0.3 + level.id * 0.1) {
+        spawnFortress();
+    }
+    
     // 创建机甲（基于模块化组装配置）
     const build = calculateMechBuild(playerSave.mechBuild);
     mech = new Mech(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
@@ -362,6 +372,21 @@ function startLevel(level) {
     
     gameRunning = true;
     gameLoop();
+}
+
+
+function spawnFortress() {
+    fortress = new Fortress(
+        200 + Math.random() * (WORLD_WIDTH - 400),
+        200 + Math.random() * (WORLD_HEIGHT - 400)
+    );
+    
+    // 生成保护小怪
+    const guardCount = 6 + Math.floor(Math.random() * 6);
+    for (let i = 0; i < guardCount; i++) {
+        const minion = fortress.spawnMinion();
+        enemies.push(new Enemy(minion.x, minion.y, minion.type));
+    }
 }
 
 function generateObstacles() {
@@ -470,6 +495,35 @@ function gameLoop() {
     
     drawGrid();
     drawObstacles();
+    
+    // 更新和绘制 BOSS 要塞
+    if (fortress) {
+        fortress.draw();
+        const minion = fortress.update(mech, pilot, isPilotActive);
+        if (minion) {
+            enemies.push(new Enemy(minion.x, minion.y, minion.type));
+        }
+        
+        // 要塞被摧毁
+        if (fortress.isDead) {
+            // 大奖励
+            missionMoney += 500;
+            missionExp += 200;
+            playerSave.materials += 50;
+            // 大爆特效
+            for (let k = 0; k < 100; k++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 8;
+                particles.push(new Particle(
+                    fortress.x, fortress.y,
+                    Math.cos(angle) * speed,
+                    Math.sin(angle) * speed,
+                    k % 3 === 0 ? '#ff4444' : k % 3 === 1 ? '#ff8800' : '#ffcc00'
+                ));
+            }
+            fortress = null;
+        }
+    }
     
     // 更新和绘制敌人
     for (let i = enemies.length - 1; i >= 0; i--) {
@@ -603,7 +657,7 @@ function gameLoop() {
     updateHUD();
     
     // 检查任务完成
-    if (enemies.length === 0 && gameRunning) {
+    if (enemies.length === 0 && !fortress && gameRunning) {
         gameRunning = false;
         showMissionResult(true);
         return;
