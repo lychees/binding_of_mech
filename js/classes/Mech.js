@@ -290,10 +290,9 @@ class Mech extends Entity {
         }
 
         const chargeRatio = this.laserCharge / this.maxLaserCharge;
-        const charged = this.laserCharge >= this.laserChargeThreshold;
-        const damage = w.damage * (1 + chargeRatio * 2);
-        const width = w.bulletRadius * 2 * (1 + chargeRatio);
-        const life = Math.floor(w.bulletLife * (1 + chargeRatio));
+        const damage = w.damage * (0.6 + chargeRatio * 2.4);
+        const width = w.bulletRadius * 2 * (0.6 + chargeRatio * 1.4);
+        const life = Math.floor(w.bulletLife * (0.6 + chargeRatio * 1.4));
 
         this.fireCooldown = w.fireRate;
         playShootSound('laser');
@@ -304,23 +303,30 @@ class Mech extends Entity {
         const muzzleX = this.x + sin * w.barrelLength;
         const muzzleY = this.y - cos * w.barrelLength;
 
-        if (charged) {
-            const beam = new LaserBeam(muzzleX, muzzleY, totalAngle, {
-                ...w,
-                damage,
-                bulletRadius: width / 2,
-                bulletLife: life
-            });
-            beam.maxLength = Math.max(WORLD_WIDTH, WORLD_HEIGHT, Math.sqrt(CANVAS_WIDTH ** 2 + CANVAS_HEIGHT ** 2) * 1.5);
-            beam.fadeStart = beam.maxLength * 0.3;
-            beam.fadeEnd = beam.maxLength;
-            beam.width = width;
-            bullets.push(beam);
-            this.velocityX -= sin * w.recoil * (1 + chargeRatio);
-            this.velocityY += cos * w.recoil * (1 + chargeRatio);
-            particles.push(...createSpark(muzzleX, muzzleY, '#ff66cc', 12, 4));
-        } else {
-            bullets.push(new LaserBeam(muzzleX, muzzleY, totalAngle, w));
+        const beam = new LaserBeam(muzzleX, muzzleY, totalAngle, {
+            ...w,
+            damage,
+            bulletRadius: width / 2,
+            bulletLife: life
+        });
+        beam.maxLength = Math.max(WORLD_WIDTH, WORLD_HEIGHT, Math.sqrt(CANVAS_WIDTH ** 2 + CANVAS_HEIGHT ** 2) * 1.5);
+        beam.fadeStart = beam.maxLength * 0.3;
+        beam.fadeEnd = beam.maxLength;
+        beam.width = width;
+        bullets.push(beam);
+
+        this.velocityX -= sin * w.recoil * (0.6 + chargeRatio * 1.4);
+        this.velocityY += cos * w.recoil * (0.6 + chargeRatio * 1.4);
+
+        if (chargeRatio >= 1) {
+            particles.push(...createSpark(muzzleX, muzzleY, '#ff66cc', 20, 6));
+            for (let i = 0; i < 12; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const s = 1 + Math.random() * 3;
+                particles.push(new Particle(muzzleX, muzzleY, Math.cos(a) * s, Math.sin(a) * s, '#ffaaee'));
+            }
+        } else if (chargeRatio > 0.5) {
+            particles.push(...createSpark(muzzleX, muzzleY, '#ff66cc', 8, 3));
         }
 
         this.isChargingLaser = false;
@@ -639,17 +645,33 @@ class Mech extends Entity {
 
         if (w.drawType === 'laser' && this.isChargingLaser && this.laserCharge > 0) {
             const chargeRatio = this.laserCharge / this.maxLaserCharge;
-            const pulse = 1 + Math.sin(Date.now() / 50) * 0.2;
-            ctx.strokeStyle = `rgba(255, 68, 170, ${0.3 + chargeRatio * 0.5})`;
-            ctx.lineWidth = (2 + chargeRatio * 6) * pulse;
+            const pulse = 1 + Math.sin(Date.now() / 40) * 0.25 * chargeRatio;
+            const glowColor = chargeRatio >= 1 ? '#ffffff' : '#ff66cc';
+
+            ctx.strokeStyle = `rgba(255, 68, 170, ${0.2 + chargeRatio * 0.4})`;
+            ctx.lineWidth = (2 + chargeRatio * 8) * pulse;
             ctx.beginPath();
             ctx.moveTo(0, -5);
-            ctx.lineTo(0, -w.barrelLength - 5 - chargeRatio * 10);
+            ctx.lineTo(0, -w.barrelLength - 5 - chargeRatio * 12);
             ctx.stroke();
-            ctx.fillStyle = `rgba(255, 200, 230, ${0.5 + chargeRatio * 0.5})`;
+
+            ctx.fillStyle = glowColor;
+            ctx.globalAlpha = 0.4 + chargeRatio * 0.6;
             ctx.beginPath();
-            ctx.arc(0, -w.barrelLength - 5, 3 + chargeRatio * 5, 0, Math.PI * 2);
+            ctx.arc(0, -w.barrelLength - 5, 4 + chargeRatio * 8 * pulse, 0, Math.PI * 2);
             ctx.fill();
+            ctx.globalAlpha = 1;
+
+            if (chargeRatio >= 1) {
+                for (let i = 0; i < 4; i++) {
+                    const a = Math.random() * Math.PI * 2;
+                    const r = 8 + Math.random() * 10;
+                    ctx.fillStyle = '#ffaaee';
+                    ctx.beginPath();
+                    ctx.arc(Math.cos(a) * r, -w.barrelLength - 5 + Math.sin(a) * r, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
         }
 
         const renderer = WEAPON_RENDERERS[w.drawType];
