@@ -13,7 +13,7 @@ class Hook {
         this.startX = x;
         this.startY = y;
         this.angle = angle;
-        this.speed = 15;
+        this.speed = 30;
         this.maxLength = 300;
         this.length = 0;
         this.state = 'flying'; // flying, hooked, retracting
@@ -85,10 +85,10 @@ class Hook {
             }
             
             // 保持轻微拉拽力让绳索绷紧
-            if (dist > maxRopeLength * 0.8) {
-                const pullSpeed = 2;
-                mech.velocityX += (dx / dist) * pullSpeed * 0.1;
-                mech.velocityY += (dy / dist) * pullSpeed * 0.1;
+            if (dist > maxRopeLength * 0.6) {
+                const pullSpeed = 8;
+                mech.velocityX += (dx / dist) * pullSpeed * 0.2;
+                mech.velocityY += (dy / dist) * pullSpeed * 0.2;
             }
         } else if (this.state === 'retracting') {
             this.length -= this.speed * 1.5;
