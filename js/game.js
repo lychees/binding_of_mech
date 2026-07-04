@@ -391,6 +391,7 @@ function gameLoop() {
         if (p.isDead) continue;
         if (isOnlineGame() && p.playerTag === 'remote') continue;
         const input = isOnlineGame() ? p1Input : (p === players[0] ? p1Input : p2Input);
+        if (!input) continue;
         p.update(input);
         p.draw();
     }

@@ -204,8 +204,10 @@ class Mech extends Entity {
         return this.input || {
             forward: keys['w'] || keys['W'],
             backward: keys['s'] || keys['S'],
-            left: keys['a'] || keys['A'],
-            right: keys['d'] || keys['D'],
+            strafeLeft: keys['a'] || keys['A'],
+            strafeRight: keys['d'] || keys['D'],
+            weaponLeft: keys['ArrowLeft'],
+            weaponRight: keys['ArrowRight'],
             turnLeft: keys['q'] || keys['Q'],
             turnRight: keys['e'] || keys['E'],
             shoot: keys[' '],
