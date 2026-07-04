@@ -13,6 +13,7 @@ import { GridInventory, InventoryItem, ITEM_RARITY } from './inventory.js?v=2';
 import { PILOT_TEMPLATES, getPilotDisplayInfo, createPilot, getRecruitCost, pilotExpToNext, addPilotExp, calculatePilotStats } from './pilots.js?v=2';
 import { ENEMY_MECH_TEMPLATES, getAllEnemyMechTemplates, getEnemyMechUnlockProgress, checkEnemyMechUnlock, buyEnemyMech, createPlayerMechFromTemplate, getEnemyMechTemplate } from './enemyMechs.js?v=2';
 import { MECH_BLUEPRINTS, getAllMechBlueprints, isMechBlueprintUnlocked, unlockMechBlueprint, buyMechFromBlueprint, createMechFromBlueprint } from './mechBlueprints.js?v=2';
+import Mech from './classes/Mech.js?v=2';
 
 let playerSave = loadSave();
 let selectedAssemblySlot = null;
@@ -32,6 +33,8 @@ export function getWeaponEditorData() { return weaponEditorData; }
 
 // ========== 页面切换 ==========
 export function initUI() {
+    window.Mech = window.Mech || Mech;
+
     window.showMainMenu = () => {
         ['mainMenu', 'levelSelect', 'hangar', 'weaponEditor', 'enemyEditorPage', 'levelEditorPage', 'lobbyPage', 'gameContainer', 'inventoryPage', 'codexPage'].forEach(id => {
             const el = document.getElementById(id);
