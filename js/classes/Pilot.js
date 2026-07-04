@@ -1,7 +1,7 @@
 import { keys, bullets, particles, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT } from '../config.js';
 import { playShootSound } from '../audio.js';
-import Bullet from './Bullet.js';
-import Particle from './Particle.js';
+import Bullet from './Bullet.js?v=2';
+import Particle from './Particle.js?v=2';
 
 class Pilot {
     constructor(x, y) {

@@ -1,9 +1,9 @@
 import { bullets, particles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, obstacles } from '../config.js';
 import { WEAPONS } from '../weapons.js';
 import { ENEMY_TEMPLATES } from '../enemies.js';
-import Bullet from './Bullet.js';
-import Entity from './Entity.js';
-import { createFlame, createSpark } from './Particle.js';
+import Bullet from './Bullet.js?v=2';
+import Entity from './Entity.js?v=2';
+import { createFlame, createSpark } from './Particle.js?v=2';
 
 // mech 由主模块在创建敌人后设置
 let mechRef = null;

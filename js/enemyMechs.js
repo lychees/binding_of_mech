@@ -1,6 +1,6 @@
 // 敌方机甲回收系统
 
-import { createDefaultMechInventory } from './inventory.js';
+import { createDefaultMechInventory } from './inventory.js?v=2';
 
 export const ENEMY_MECH_TEMPLATES = {
     EM_SCOUT: {

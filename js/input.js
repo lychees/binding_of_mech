@@ -1,4 +1,4 @@
-import { keys } from './config.js';
+import { keys } from './config.js?v=2';
 
 const PLAYER_BINDINGS = {
     p1: {

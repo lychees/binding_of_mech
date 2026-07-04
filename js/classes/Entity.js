@@ -1,7 +1,7 @@
 // 实体基类：共享位置、速度、着火、冒烟、碰撞等逻辑
 import { particles } from '../config.js';
 import { clamp, normalize } from '../utils.js';
-import { createFlame, createSmoke } from './Particle.js';
+import { createFlame, createSmoke } from './Particle.js?v=2';
 
 export default class Entity {
     constructor(x, y) {

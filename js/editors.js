@@ -1,7 +1,7 @@
 // 杂兵编辑器、关卡编辑器
-import { ENEMY_TEMPLATES, LEVELS } from './enemies.js';
-import { getPlayerSave } from './ui.js';
-import { createFieldRow, createEditorSection, downloadJSON } from './utils.js';
+import { ENEMY_TEMPLATES, LEVELS } from './enemies.js?v=2';
+import { getPlayerSave } from './ui.js?v=2';
+import { createFieldRow, createEditorSection, downloadJSON } from './utils.js?v=2';
 
 const ENEMY_FIELDS = [
     { key: 'name', label: '名称', type: 'text' },

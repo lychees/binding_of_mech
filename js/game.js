@@ -1,29 +1,29 @@
 // 游戏核心：关卡启动、主循环、绘制、掉落物、HUD、小地图、撤离点
-import { keys, bullets, particles, footprints, hooks, obstacles, enemies, drops, inventory, setCamera, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, setMechBag, setPilotBag } from './config.js';
-import { ENEMY_TEMPLATES, LEVELS } from './enemies.js';
-import { WEAPONS } from './weapons.js';
+import { keys, bullets, particles, footprints, hooks, obstacles, enemies, drops, inventory, setCamera, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, setMechBag, setPilotBag } from './config.js?v=2';
+import { ENEMY_TEMPLATES, LEVELS } from './enemies.js?v=2';
+import { WEAPONS } from './weapons.js?v=2';
 import { addMoneyExp } from '../data/save.js';
-import { createPilot, applyPilotToMech, applyPilotToPilotEntity, addPilotExp } from './pilots.js';
-import { recordEnemyKill } from './enemyMechs.js';
-import Mech from './classes/Mech.js';
-import Enemy from './classes/Enemy.js';
-import Pilot from './classes/Pilot.js';
-import Bullet from './classes/Bullet.js';
-import LaserBeam from './classes/LaserBeam.js';
-import Particle, { createSpark } from './classes/Particle.js';
-import Fortress from './classes/Fortress.js';
-import { initAudio, playExplosionSound, playHitSound, playRepairSound, playPickupSound, playBGM, stopBGM } from './audio.js';
-import { ALL_MODULES, calculateMechBuild } from './modules.js';
-import { rollBlueprintDrops } from './blueprints.js';
-import { dist, normalize } from './utils.js';
-import { getPlayerSave, setPlayerSave, getWeaponEditorData } from './ui.js';
-import { updateInputs, p1Input, p2Input, resetInputs } from './input.js';
+import { createPilot, applyPilotToMech, applyPilotToPilotEntity, addPilotExp } from './pilots.js?v=2';
+import { recordEnemyKill } from './enemyMechs.js?v=2';
+import Mech from './classes/Mech.js?v=2';
+import Enemy from './classes/Enemy.js?v=2';
+import Pilot from './classes/Pilot.js?v=2';
+import Bullet from './classes/Bullet.js?v=2';
+import LaserBeam from './classes/LaserBeam.js?v=2';
+import Particle, { createSpark } from './classes/Particle.js?v=2';
+import Fortress from './classes/Fortress.js?v=2';
+import { initAudio, playExplosionSound, playHitSound, playRepairSound, playPickupSound, playBGM, stopBGM } from './audio.js?v=2';
+import { ALL_MODULES, calculateMechBuild } from './modules.js?v=2';
+import { rollBlueprintDrops } from './blueprints.js?v=2';
+import { dist, normalize } from './utils.js?v=2';
+import { getPlayerSave, setPlayerSave, getWeaponEditorData } from './ui.js?v=2';
+import { updateInputs, p1Input, p2Input, resetInputs } from './input.js?v=2';
 import {
     initOnlineGame, setNetworkManager, resetOnlineGame, handleNetworkMessage,
     isOnlineGame, isOnlineHost, getNetworkPing, syncLocalPlayer, syncWorldState,
     updateRemotePlayer, broadcastAction, getRemotePlayer
-} from './net/OnlineGame.js';
-import { GridInventory, InventoryItem, createDropFromItem, ITEM_RARITY } from './inventory.js';
+} from './net/OnlineGame.js?v=2';
+import { GridInventory, InventoryItem, createDropFromItem, ITEM_RARITY } from './inventory.js?v=2';
 
 let _currentPlayerSave = null;
 

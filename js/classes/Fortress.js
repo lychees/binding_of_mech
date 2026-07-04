@@ -1,7 +1,7 @@
 import { bullets, particles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, obstacles } from '../config.js';
 import { WEAPONS } from '../weapons.js';
-import Bullet from './Bullet.js';
-import Particle from './Particle.js';
+import Bullet from './Bullet.js?v=2';
+import Particle from './Particle.js?v=2';
 
 class Fortress {
     constructor(x, y) {

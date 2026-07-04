@@ -1,4 +1,4 @@
-import NetworkManager from './NetworkManager.js';
+import NetworkManager from './NetworkManager.js?v=2';
 import Enemy from '../classes/Enemy.js';
 import { ENEMY_TEMPLATES } from '../enemies.js';
 

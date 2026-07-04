@@ -1,17 +1,17 @@
 // 格纳库、页面切换、武器工坊 UI
-import { ENEMY_TEMPLATES, LEVELS } from './enemies.js';
-import { WEAPONS } from './weapons.js';
+import { ENEMY_TEMPLATES, LEVELS } from './enemies.js?v=2';
+import { WEAPONS } from './weapons.js?v=2';
 import { loadSave, saveGame, upgradeCost } from '../data/save.js';
-import { ALL_MODULES, MODULE_RARITY, calculateMechBuild, moduleUpgradeCost, moduleResearchCost, salvageModule } from './modules.js';
-import { getManufactureCost, getBlueprintResearchCost } from './blueprints.js';
-import { stopGame, startLevel } from './game.js';
-import { createFieldRow, createEditorSection, downloadJSON } from './utils.js';
-import NetworkManager from './net/NetworkManager.js';
-import { initOnlineGame, setNetworkManager, resetOnlineGame, handleNetworkMessage, isOnlineGame, isOnlineHost, getNetworkPing } from './net/OnlineGame.js';
+import { ALL_MODULES, MODULE_RARITY, calculateMechBuild, moduleUpgradeCost, moduleResearchCost, salvageModule } from './modules.js?v=2';
+import { getManufactureCost, getBlueprintResearchCost } from './blueprints.js?v=2';
+import { stopGame, startLevel } from './game.js?v=2';
+import { createFieldRow, createEditorSection, downloadJSON } from './utils.js?v=2';
+import NetworkManager from './net/NetworkManager.js?v=2';
+import { initOnlineGame, setNetworkManager, resetOnlineGame, handleNetworkMessage, isOnlineGame, isOnlineHost, getNetworkPing } from './net/OnlineGame.js?v=2';
 
-import { GridInventory, InventoryItem, ITEM_RARITY } from './inventory.js';
-import { PILOT_TEMPLATES, getPilotDisplayInfo, createPilot, getRecruitCost, pilotExpToNext, addPilotExp, calculatePilotStats } from './pilots.js';
-import { ENEMY_MECH_TEMPLATES, getAllEnemyMechTemplates, getEnemyMechUnlockProgress, checkEnemyMechUnlock, buyEnemyMech, createPlayerMechFromTemplate, getEnemyMechTemplate } from './enemyMechs.js';
+import { GridInventory, InventoryItem, ITEM_RARITY } from './inventory.js?v=2';
+import { PILOT_TEMPLATES, getPilotDisplayInfo, createPilot, getRecruitCost, pilotExpToNext, addPilotExp, calculatePilotStats } from './pilots.js?v=2';
+import { ENEMY_MECH_TEMPLATES, getAllEnemyMechTemplates, getEnemyMechUnlockProgress, checkEnemyMechUnlock, buyEnemyMech, createPlayerMechFromTemplate, getEnemyMechTemplate } from './enemyMechs.js?v=2';
 
 let playerSave = loadSave();
 let selectedAssemblySlot = null;
