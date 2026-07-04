@@ -9,12 +9,18 @@ import { createFieldRow, createEditorSection, downloadJSON } from './utils.js';
 import NetworkManager from './net/NetworkManager.js';
 import { initOnlineGame, setNetworkManager, resetOnlineGame, handleNetworkMessage, isOnlineGame, isOnlineHost, getNetworkPing } from './net/OnlineGame.js';
 
+import { GridInventory, InventoryItem, ITEM_RARITY } from './inventory.js';
+
 let playerSave = loadSave();
 let selectedAssemblySlot = null;
 let selectedFilter = 'all';
 let weaponEditorData = JSON.parse(JSON.stringify(WEAPONS));
 let netManager = null;
 let isHostFlag = false;
+let inventoryTab = 'mech';
+let draggedItem = null;
+let inventoryTooltip = null;
+let inventoryContextMenu = null;
 
 export function getPlayerSave() { return playerSave; }
 export function setPlayerSave(s) { playerSave = s; }
@@ -23,7 +29,7 @@ export function getWeaponEditorData() { return weaponEditorData; }
 // ========== 页面切换 ==========
 export function initUI() {
     window.showMainMenu = () => {
-        ['mainMenu', 'levelSelect', 'hangar', 'weaponEditor', 'enemyEditorPage', 'levelEditorPage', 'lobbyPage', 'gameContainer'].forEach(id => {
+        ['mainMenu', 'levelSelect', 'hangar', 'weaponEditor', 'enemyEditorPage', 'levelEditorPage', 'lobbyPage', 'gameContainer', 'inventoryPage'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = id === 'mainMenu' ? 'flex' : 'none';
         });
@@ -81,6 +87,36 @@ export function initUI() {
         document.getElementById('mainMenu').style.display = 'none';
         document.getElementById('hangar').style.display = 'flex';
         updateHangarUI();
+    };
+
+    window.showInventory = () => {
+        inventoryTab = 'mech';
+        document.getElementById('gameContainer').style.display = 'none';
+        document.getElementById('inventoryPage').style.display = 'flex';
+        renderInventory();
+    };
+
+    window.hideInventory = () => {
+        document.getElementById('inventoryPage').style.display = 'none';
+        document.getElementById('gameContainer').style.display = 'block';
+        if (gameRunning) {
+            // 恢复游戏循环
+        }
+    };
+
+    window.toggleInventory = () => {
+        const inv = document.getElementById('inventoryPage');
+        if (!inv) return;
+        if (inv.style.display === 'flex') {
+            window.hideInventory();
+        } else {
+            window.showInventory();
+        }
+    };
+
+    window.switchInventoryTab = (tab) => {
+        inventoryTab = tab;
+        renderInventory();
     };
 
     window.showWeaponEditor = () => {
@@ -154,6 +190,224 @@ function resetLobbyUI() {
     document.getElementById('joinRoomId').value = '';
     if (netManager) { netManager.disconnect(); netManager = null; }
     resetOnlineGame();
+}
+
+// ========== 背包 UI ==========
+function getCurrentInventoryBag() {
+    if (inventoryTab === 'pilot') {
+        return window.pilotBag || (playerSave.pilotInventory ? GridInventory.fromJSON(playerSave.pilotInventory) : null);
+    }
+    return window.mechBag || (playerSave.mechInventory ? GridInventory.fromJSON(playerSave.mechInventory) : null);
+}
+
+function saveInventoryBag(bag) {
+    if (!bag) return;
+    if (bag.owner === 'pilot') {
+        playerSave.pilotInventory = bag.toJSON();
+        window.pilotBag = bag;
+    } else {
+        playerSave.mechInventory = bag.toJSON();
+        window.mechBag = bag;
+    }
+    saveGame(playerSave);
+}
+
+function renderInventory() {
+    const page = document.getElementById('inventoryPage');
+    if (!page) return;
+    const bag = getCurrentInventoryBag();
+    if (!bag) return;
+
+    const title = inventoryTab === 'pilot' ? '飞行员背包' : '机甲货仓';
+    const gridHtml = buildInventoryGridHtml(bag);
+
+    page.innerHTML = `
+        <button class="back-btn" onclick="hideInventory()">返回</button>
+        <h2 style="color:#00d4ff; font-size:32px; margin-bottom:10px;">${title}</h2>
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <button class="menu-btn ${inventoryTab === 'mech' ? 'active' : ''}" onclick="switchInventoryTab('mech')">机甲货仓</button>
+            <button class="menu-btn ${inventoryTab === 'pilot' ? 'active' : ''}" onclick="switchInventoryTab('pilot')">飞行员背包</button>
+        </div>
+        <div style="color:#ffaa44; margin-bottom:15px; font-size:14px;">
+            已用 ${bag.usedCells}/${bag.totalCells} 格 | 负重 ${bag.totalWeight.toFixed(1)}/${bag.maxWeight} kg
+        </div>
+        <div id="inventoryGridContainer" style="position:relative;">${gridHtml}</div>
+        <div id="inventoryDetail" style="margin-top:15px; min-height:60px; color:#ccc; font-size:13px;">悬停或选择物品查看详情</div>
+    `;
+    bindInventoryEvents(bag);
+}
+
+function buildInventoryGridHtml(bag) {
+    const cellSize = 36;
+    const gap = 2;
+    const width = bag.cols * (cellSize + gap);
+    const height = bag.rows * (cellSize + gap);
+    let html = `<div id="inventoryGrid" style="display:grid; grid-template-columns: repeat(${bag.cols}, ${cellSize}px); grid-template-rows: repeat(${bag.rows}, ${cellSize}px); gap:${gap}px; width:${width}px; height:${height}px;">`;
+    for (let y = 0; y < bag.rows; y++) {
+        for (let x = 0; x < bag.cols; x++) {
+            html += `<div class="inventory-cell" data-x="${x}" data-y="${y}"></div>`;
+        }
+    }
+    html += '</div>';
+
+    // 物品层
+    html += `<div id="inventoryItems" style="position:absolute; top:0; left:0; width:${width}px; height:${height}px; pointer-events:none;">`;
+    for (const item of bag.items) {
+        const def = item.def;
+        const w = item.width * (cellSize + gap) - gap;
+        const h = item.height * (cellSize + gap) - gap;
+        const left = item.x * (cellSize + gap);
+        const top = item.y * (cellSize + gap);
+        html += `
+            <div class="inventory-item rarity-${def.rarity}" data-id="${item.id}" draggable="true"
+                 style="position:absolute; left:${left}px; top:${top}px; width:${w}px; height:${h}px; pointer-events:auto;">
+                <span class="item-icon">${def.icon}</span>
+                ${item.amount > 1 ? `<span class="item-stack">${item.amount}</span>` : ''}
+            </div>`;
+    }
+    html += '</div>';
+    return html;
+}
+
+function bindInventoryEvents(bag) {
+    const grid = document.getElementById('inventoryGrid');
+    const items = document.querySelectorAll('.inventory-item');
+    const detail = document.getElementById('inventoryDetail');
+    if (!grid) return;
+
+    items.forEach(el => {
+        el.addEventListener('dragstart', (e) => {
+            draggedItem = bag.items.find(i => i.id === el.dataset.id);
+            if (draggedItem) {
+                e.dataTransfer.setData('text/plain', draggedItem.id);
+                el.style.opacity = '0.5';
+            }
+        });
+        el.addEventListener('dragend', () => {
+            draggedItem = null;
+            el.style.opacity = '1';
+        });
+        el.addEventListener('mouseenter', () => {
+            const item = bag.items.find(i => i.id === el.dataset.id);
+            if (item) showInventoryTooltip(item, el);
+            if (item && detail) {
+                const def = item.def;
+                detail.innerHTML = `
+                    <div style="color:${ITEM_RARITY[def.rarity].color}; font-weight:bold;">${def.name} ${item.amount > 1 ? `×${item.amount}` : ''}</div>
+                    <div style="color:#888;">${def.description}</div>
+                    <div style="color:#aaa; font-size:12px; margin-top:4px;">${def.width}×${def.height} 重量 ${def.weight}kg/个</div>
+                `;
+            }
+        });
+        el.addEventListener('mouseleave', () => hideInventoryTooltip());
+        el.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const item = bag.items.find(i => i.id === el.dataset.id);
+            if (item) showInventoryContextMenu(e, item, bag);
+        });
+    });
+
+    grid.addEventListener('dragover', (e) => {
+        e.preventDefault();
+    });
+
+    grid.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (!draggedItem) return;
+        const rect = grid.getBoundingClientRect();
+        const cellSize = 36;
+        const gap = 2;
+        const x = Math.floor((e.clientX - rect.left) / (cellSize + gap));
+        const y = Math.floor((e.clientY - rect.top) / (cellSize + gap));
+        if (bag.move(draggedItem, x, y)) {
+            saveInventoryBag(bag);
+            renderInventory();
+        } else {
+            // 无法放置，回原位
+        }
+        draggedItem = null;
+    });
+}
+
+function showInventoryTooltip(item, el) {
+    if (inventoryTooltip) inventoryTooltip.remove();
+    const def = item.def;
+    inventoryTooltip = document.createElement('div');
+    inventoryTooltip.className = 'inventory-tooltip';
+    inventoryTooltip.innerHTML = `
+        <div style="color:${ITEM_RARITY[def.rarity].color}; font-weight:bold;">${def.name}</div>
+        <div>${def.description}</div>
+        ${item.amount > 1 ? `<div>堆叠: ${item.amount}/${def.maxStack}</div>` : ''}
+    `;
+    document.body.appendChild(inventoryTooltip);
+    const rect = el.getBoundingClientRect();
+    inventoryTooltip.style.left = rect.left + 'px';
+    inventoryTooltip.style.top = (rect.bottom + 5) + 'px';
+}
+
+function hideInventoryTooltip() {
+    if (inventoryTooltip) {
+        inventoryTooltip.remove();
+        inventoryTooltip = null;
+    }
+}
+
+function showInventoryContextMenu(e, item, bag) {
+    if (inventoryContextMenu) inventoryContextMenu.remove();
+    inventoryContextMenu = document.createElement('div');
+    inventoryContextMenu.className = 'inventory-context-menu';
+    inventoryContextMenu.style.left = e.clientX + 'px';
+    inventoryContextMenu.style.top = e.clientY + 'px';
+
+    const actions = [];
+    if (item.def.type === 'consumable') {
+        actions.push({ label: '使用', action: () => useInventoryItem(item, bag) });
+    }
+    if (item.amount > 1) {
+        actions.push({ label: '拆分一半', action: () => splitInventoryItem(item, bag) });
+    }
+    actions.push({ label: '丢弃', action: () => dropInventoryItem(item, bag) });
+
+    inventoryContextMenu.innerHTML = actions.map(a => `<div class="ctx-item" onclick="${a.action.toString()}">${a.label}</div>`).join('');
+    // 实际绑定
+    inventoryContextMenu.querySelectorAll('.ctx-item').forEach((el, idx) => {
+        el.onclick = () => { actions[idx].action(); closeInventoryContextMenu(); };
+    });
+
+    document.body.appendChild(inventoryContextMenu);
+    document.addEventListener('click', closeInventoryContextMenu, { once: true });
+}
+
+function closeInventoryContextMenu() {
+    if (inventoryContextMenu) {
+        inventoryContextMenu.remove();
+        inventoryContextMenu = null;
+    }
+}
+
+function useInventoryItem(item, bag) {
+    const target = inventoryTab === 'pilot'
+        ? (window.pilot || { health: 0, maxHealth: 1 })
+        : (window.mech || { health: 0, maxHealth: 1 });
+    const result = bag.useItem(item, target);
+    if (result.used) {
+        saveInventoryBag(bag);
+        renderInventory();
+    }
+}
+
+function splitInventoryItem(item, bag) {
+    const half = Math.floor(item.amount / 2);
+    if (half > 0 && bag.splitStack(item, half)) {
+        saveInventoryBag(bag);
+        renderInventory();
+    }
+}
+
+function dropInventoryItem(item, bag) {
+    bag.remove(item);
+    saveInventoryBag(bag);
+    renderInventory();
 }
 
 // ========== 关卡选择 ==========

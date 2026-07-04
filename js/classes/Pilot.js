@@ -31,6 +31,7 @@ class Pilot {
         
         // 与机甲的互动
         this.nearbyMech = null;
+        this.inventory = null;
     }
     
     update() {

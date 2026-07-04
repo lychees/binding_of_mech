@@ -1,3 +1,5 @@
+import { GridInventory, createDefaultMechInventory, createDefaultPilotInventory } from '../js/inventory.js';
+
 // 存档系统
 const SAVE_KEY = 'mech_game_save';
 
@@ -41,6 +43,12 @@ export function migrateSave(data) {
                 data.partsInventory[moduleId] = { level: 1, count: defaultInv[moduleId].count };
             }
         }
+    }
+    if (!data.mechInventory) {
+        data.mechInventory = createDefaultMechInventory().toJSON();
+    }
+    if (!data.pilotInventory) {
+        data.pilotInventory = createDefaultPilotInventory().toJSON();
     }
     if (!data.researchedModules) {
         data.researchedModules = ['C_STANDARD', 'H_STANDARD', 'A_STANDARD', 'L_STANDARD', 'CO_STANDARD', 'W_VULCAN', 'W_SHOTGUN', 'W_CANNON', 'W_LASER', 'W_BEAM_SWORD'];
@@ -115,6 +123,8 @@ export function createDefaultSave() {
         materials: 0,
         mechBuild: createDefaultMechBuild(),
         partsInventory: createDefaultPartsInventory(),
+        mechInventory: createDefaultMechInventory().toJSON(),
+        pilotInventory: createDefaultPilotInventory().toJSON(),
         researchedModules: ['C_STANDARD', 'H_STANDARD', 'A_STANDARD', 'L_STANDARD', 'CO_STANDARD', 'W_VULCAN', 'W_SHOTGUN', 'W_CANNON', 'W_LASER', 'W_BEAM_SWORD'],
         blueprints: [],
         // 保留旧版字段用于兼容

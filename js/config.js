@@ -13,7 +13,12 @@ export const hooks = [];
 export const obstacles = [];
 export const enemies = [];
 export const drops = []; // 地面掉落物
-export const inventory = { repairKits: 0 }; // 物品栏
+export const inventory = { repairKits: 0 }; // 旧版兼容，已被 mech/pilot 背包取代
+export let mechBag = null;
+export let pilotBag = null;
+
+export function setMechBag(bag) { mechBag = bag; }
+export function setPilotBag(bag) { pilotBag = bag; }
 
 export let cameraX = 0;
 export let cameraY = 0;

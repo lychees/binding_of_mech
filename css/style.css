@@ -564,3 +564,92 @@ body {
     color: #ccc;
     margin: 3px 0;
 }
+
+/* 背包系统 */
+#inventoryGridContainer {
+    position: relative;
+}
+
+.inventory-cell {
+    background: rgba(30, 30, 40, 0.9);
+    border: 1px solid #333;
+    border-radius: 2px;
+}
+
+.inventory-cell.drag-over {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: #00d4ff;
+}
+
+.inventory-item {
+    background: rgba(40, 40, 50, 0.95);
+    border: 1px solid;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    user-select: none;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.inventory-item:active {
+    cursor: grabbing;
+}
+
+.inventory-item .item-icon {
+    font-size: 16px;
+    pointer-events: none;
+}
+
+.inventory-item .item-stack {
+    position: absolute;
+    bottom: 2px;
+    right: 3px;
+    font-size: 10px;
+    color: #fff;
+    font-weight: bold;
+    text-shadow: 0 0 2px #000;
+    pointer-events: none;
+}
+
+.rarity-common { border-color: #aaaaaa; }
+.rarity-uncommon { border-color: #00ff88; }
+.rarity-rare { border-color: #00d4ff; }
+.rarity-epic { border-color: #aa00ff; }
+.rarity-legendary { border-color: #ffaa44; }
+
+.inventory-tooltip {
+    position: fixed;
+    background: rgba(10, 10, 15, 0.95);
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: #fff;
+    font-size: 12px;
+    z-index: 1000;
+    max-width: 200px;
+    pointer-events: none;
+}
+
+.inventory-context-menu {
+    position: fixed;
+    background: rgba(20, 20, 30, 0.98);
+    border: 1px solid #444;
+    border-radius: 4px;
+    z-index: 1001;
+    min-width: 100px;
+}
+
+.inventory-context-menu .ctx-item {
+    padding: 8px 12px;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.inventory-context-menu .ctx-item:hover {
+    background: rgba(0, 212, 255, 0.2);
+    color: #00d4ff;
+}

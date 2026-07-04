@@ -1,5 +1,5 @@
 // 游戏核心：关卡启动、主循环、绘制、掉落物、HUD、小地图、撤离点
-import { keys, bullets, particles, footprints, hooks, obstacles, enemies, drops, inventory, setCamera, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT } from './config.js';
+import { keys, bullets, particles, footprints, hooks, obstacles, enemies, drops, inventory, setCamera, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, setMechBag, setPilotBag } from './config.js';
 import { ENEMY_TEMPLATES, LEVELS } from './enemies.js';
 import { WEAPONS } from './weapons.js';
 import { addMoneyExp } from '../data/save.js';
@@ -21,6 +21,7 @@ import {
     isOnlineGame, isOnlineHost, getNetworkPing, syncLocalPlayer, syncWorldState,
     updateRemotePlayer, broadcastAction, getRemotePlayer
 } from './net/OnlineGame.js';
+import { GridInventory, InventoryItem, createDropFromItem, ITEM_RARITY } from './inventory.js';
 
 let _currentPlayerSave = null;
 
@@ -113,12 +114,20 @@ export function startLevel(level, playerSave, multiplayer = false) {
     const build = calculateMechBuild(playerSave.mechBuild);
     const spawnX = WORLD_WIDTH / 2;
     const spawnY = WORLD_HEIGHT / 2;
+
+    const mechBag = GridInventory.fromJSON(playerSave.mechInventory || {});
+    const pilotBag = GridInventory.fromJSON(playerSave.pilotInventory || {});
+    setMechBag(mechBag);
+    setPilotBag(pilotBag);
+
     mech = createPlayerMech(spawnX - (multiplayer ? 60 : 0), spawnY, build, playerSave, 'p1');
+    mech.inventory = mechBag;
     players.push(mech);
     window.mech = mech;
 
     if (multiplayer) {
         const mech2 = createPlayerMech(spawnX + 60, spawnY, build, playerSave, 'p2');
+        mech2.inventory = mechBag;
         players.push(mech2);
         window.mech2 = mech2;
     }
@@ -132,6 +141,8 @@ export function startLevel(level, playerSave, multiplayer = false) {
     });
     import('./classes/Hook.js').then(m => m.setMechRef(mech));
 
+    window.mechBag = mechBag;
+    window.pilotBag = pilotBag;
     window.players = players;
     window.LEVELS = LEVELS;
     window.startLevel = startLevel;
@@ -479,28 +490,23 @@ function spawnDrops(x, y, template, source) {
     });
     if (source === 'enemy') {
         if (Math.random() < 0.3) {
-            drops.push({
-                x: x + (Math.random() - 0.5) * 20,
-                y: y + (Math.random() - 0.5) * 20,
-                type: 'repair',
-                amount: 30,
-                radius: 10,
-                color: '#00ff88',
-                life: 600
-            });
+            const repairAmount = Math.floor(Math.random() * 2) + 1;
+            const item = new InventoryItem('repairKit', repairAmount);
+            drops.push(createDropFromItem(item, x + (Math.random() - 0.5) * 20, y + (Math.random() - 0.5) * 20));
         }
         if (Math.random() < 0.15) {
             const type = Math.random() < 0.6 ? 'alloySteel' : 'darkFuel';
-            drops.push({
-                x: x + (Math.random() - 0.5) * 30,
-                y: y + (Math.random() - 0.5) * 30,
-                type: 'crate',
-                crateType: type,
-                amount: type === 'alloySteel' ? 5 + Math.floor(Math.random() * 6) : 3 + Math.floor(Math.random() * 4),
-                radius: 12,
-                color: type === 'alloySteel' ? '#a0a0a0' : '#4a0080',
-                life: 600
-            });
+            const amount = type === 'alloySteel' ? 5 + Math.floor(Math.random() * 6) : 3 + Math.floor(Math.random() * 4);
+            const item = new InventoryItem(type, amount);
+            drops.push(createDropFromItem(item, x + (Math.random() - 0.5) * 30, y + (Math.random() - 0.5) * 30));
+        }
+        if (Math.random() < 0.08) {
+            const item = new InventoryItem('firstAidKit', 1);
+            drops.push(createDropFromItem(item, x + (Math.random() - 0.5) * 25, y + (Math.random() - 0.5) * 25));
+        }
+        if (Math.random() < 0.05) {
+            const item = new InventoryItem('energyCell', 1);
+            drops.push(createDropFromItem(item, x + (Math.random() - 0.5) * 25, y + (Math.random() - 0.5) * 25));
         }
     }
 }
@@ -510,6 +516,7 @@ function ejectPilot() {
     isPilotActive = true;
     mech.isPilotEjected = true;
     pilot = new Pilot(mech.x, mech.y);
+    pilot.inventory = window.pilotBag;
     particles.push(...createSpark(mech.x, mech.y, '#ffcc00', 10, 4));
 }
 
@@ -713,7 +720,16 @@ function updateHUD() {
     document.getElementById('hudExp').textContent = missionExp;
     document.getElementById('hudMaterials').textContent = missionMaterials;
     document.getElementById('hudEnemies').textContent = enemies.length;
-    document.getElementById('hudRepair').textContent = inventory.repairKits;
+    const activeBag = isPilotActive && pilot ? window.pilotBag : window.mechBag;
+    const used = activeBag ? activeBag.usedCells : 0;
+    const total = activeBag ? activeBag.totalCells : 0;
+    const weight = activeBag ? activeBag.totalWeight.toFixed(1) : 0;
+    const maxWeight = activeBag ? activeBag.maxWeight : 0;
+    const repairEl = document.getElementById('hudRepair');
+    if (repairEl) {
+        repairEl.textContent = `${used}/${total} 格 ${weight}/${maxWeight}kg`;
+        repairEl.parentElement.title = `按 I 打开背包，按 R 快速使用${isPilotActive ? '急救包' : '修理包'}`;
+    }
 
     const onlineStatus = document.getElementById('onlineStatus');
     const netPing = document.getElementById('netPing');
@@ -800,6 +816,25 @@ function updateDrops() {
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 10px monospace';
             ctx.fillText('$', sx - 3, sy + 3);
+        } else if (d.type === 'item') {
+            const item = d.item;
+            const def = item.def;
+            const size = Math.max(10, Math.max(def.width, def.height) * 10);
+            ctx.fillStyle = ITEM_RARITY[def.rarity].color;
+            ctx.fillRect(sx - size / 2, sy - size / 2, size, size);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(sx - size / 2, sy - size / 2, size, size);
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 12px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(def.icon, sx, sy + 4);
+            ctx.textAlign = 'left';
+            if (item.amount > 1) {
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 9px monospace';
+                ctx.fillText(item.amount, sx - size / 2 + 2, sy + size / 2 - 2);
+            }
         } else if (d.type === 'repair') {
             ctx.fillStyle = blink ? '#00ffaa' : '#00ff88';
             ctx.beginPath();
@@ -826,9 +861,11 @@ function updateDrops() {
 
         const pickupTargets = isPilotActive && pilot ? [pilot] : players.filter(p => !p.isDead);
         let picked = false;
+        let picker = null;
         for (const t of pickupTargets) {
             if (dist(t.x, t.y, d.x, d.y) < 30) {
                 picked = true;
+                picker = t;
                 break;
             }
         }
@@ -836,17 +873,30 @@ function updateDrops() {
             if (d.type === 'money') {
                 playPickupSound();
                 missionMoney += d.amount;
+                drops.splice(i, 1);
+            } else if (d.type === 'item') {
+                const bag = isPilotActive && pilot ? window.pilotBag : window.mechBag;
+                const result = bag.addItem(d.item);
+                if (result.success) {
+                    playPickupSound();
+                    showFloatingText(d.x, d.y - 20, `+${d.item.amount} ${d.item.def.name}`);
+                    drops.splice(i, 1);
+                } else {
+                    if (picker === pickupTargets[0]) {
+                        showFloatingText(d.x, d.y - 30, '背包已满');
+                    }
+                }
             } else if (d.type === 'repair') {
                 playPickupSound();
                 inventory.repairKits++;
-            }
-            particles.push(...createSpark(d.x, d.y, d.type === 'money' ? '#ffcc00' : d.type === 'crate' ? '#00ccff' : '#00ff88', 5, 3));
-            if (d.type === 'crate') {
+                drops.splice(i, 1);
+            } else if (d.type === 'crate') {
+                playPickupSound();
                 const materialName = d.crateType === 'alloySteel' ? '合金钢材' : '暗星燃料';
                 showFloatingText(d.x, d.y - 20, `+${d.amount} ${materialName}`);
                 missionMaterials += d.amount;
+                drops.splice(i, 1);
             }
-            drops.splice(i, 1);
         }
     }
 }
@@ -1049,6 +1099,11 @@ function showMissionResult(won) {
         const nextLevel = LEVELS.find(l => l.id === currentLevel.id + 1);
         if (nextLevel) nextLevel.unlocked = true;
     }
+    if (window.mechBag) playerSave.mechInventory = window.mechBag.toJSON();
+    if (window.pilotBag) playerSave.pilotInventory = window.pilotBag.toJSON();
+    saveGame(playerSave);
+    setPlayerSave(playerSave);
+    if (window.hideInventory) window.hideInventory();
 }
 
 // 输入处理
@@ -1071,14 +1126,24 @@ document.addEventListener('keydown', (e) => {
         }
     }
     if (e.key === 'Shift') e.preventDefault();
+    if (e.key === 'i' || e.key === 'I') {
+        e.preventDefault();
+        if (window.toggleInventory) window.toggleInventory();
+    }
     if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
-        const repairTarget = players.find(p => !p.isDead) || mech;
-        if (repairTarget && inventory.repairKits > 0 && repairTarget.health < repairTarget.maxHealth) {
-            inventory.repairKits--;
-            repairTarget.health = Math.min(repairTarget.maxHealth, repairTarget.health + 30);
-            playRepairSound();
-            particles.push(...createSpark(repairTarget.x, repairTarget.y, '#00ff88', 10, 3));
+        const bag = isPilotActive && pilot ? window.pilotBag : window.mechBag;
+        const target = isPilotActive && pilot ? pilot : (players.find(p => !p.isDead) || mech);
+        if (bag && target) {
+            const item = bag.findBestUsable(target, 'heal');
+            if (item) {
+                const result = bag.useItem(item, target);
+                if (result.used) {
+                    playRepairSound();
+                    particles.push(...createSpark(target.x, target.y, '#00ff88', 10, 3));
+                    showFloatingText(target.x, target.y - 30, `+${result.heal || result.energy || ''} ${item.def.name}`);
+                }
+            }
         }
     }
     if (e.key === 'Escape') {

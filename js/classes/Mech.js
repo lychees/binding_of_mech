@@ -177,6 +177,7 @@ class Mech extends Entity {
 
         this.isPilotEjected = false;
         this.alreadyExploded = false;
+        this.inventory = null;
     }
 
     update(input = null) {
@@ -245,6 +246,13 @@ class Mech extends Entity {
         } else if (!this.getInput().shoot) {
             this.heatLevel = Math.max(0, this.heatLevel - this.currentWeapon.heatDecay);
         }
+    }
+
+    resetOverheat() {
+        this.isOverheated = false;
+        this.overheatTimer = 0;
+        this.heatLevel = 0;
+        this.fireCooldown = 0;
     }
 
     updateSwing() {
