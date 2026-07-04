@@ -990,14 +990,10 @@ function checkEvacuation() {
     const inRange = targets.some(t => dist(t.x, t.y, evacuationPoint.x, evacuationPoint.y) < evacuationPoint.radius);
     if (inRange) {
         showEvacuationPrompt(true);
-        if (keys['e'] || keys['E']) {
-            evacuationHoldTime++;
-            const target = targets.find(t => dist(t.x, t.y, evacuationPoint.x, evacuationPoint.y) < evacuationPoint.radius);
-            if (target) drawEvacuationProgress(target.x, target.y);
-            if (evacuationHoldTime >= EVACUATION_HOLD_REQUIRED) evacuateMission();
-        } else {
-            evacuationHoldTime = 0;
-        }
+        evacuationHoldTime++;
+        const target = targets.find(t => dist(t.x, t.y, evacuationPoint.x, evacuationPoint.y) < evacuationPoint.radius);
+        if (target) drawEvacuationProgress(target.x, target.y);
+        if (evacuationHoldTime >= EVACUATION_HOLD_REQUIRED) evacuateMission();
     } else {
         showEvacuationPrompt(false);
         evacuationHoldTime = 0;
@@ -1036,7 +1032,8 @@ function showEvacuationPrompt(show) {
         prompt.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.85); color:#00d4ff; padding:20px 30px; border:2px solid #00d4ff; border-radius:8px; font-family:monospace; font-size:16px; z-index:300; display:none; text-align:center;';
         prompt.innerHTML = `
             <div style="font-size:20px; margin-bottom:10px;">撤离点已就绪</div>
-            <div>长按 [E] 撤离战场</div>
+            <div>进入范围自动撤离</div>
+            <div style="font-size:12px; color:#888; margin-top:8px;">保持原地约 1.5 秒即可撤离</div>
             <div style="font-size:12px; color:#888; margin-top:8px;">保留当前获得的金币、经验和材料</div>`;
         document.getElementById('gameContainer').appendChild(prompt);
     }
