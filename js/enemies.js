@@ -83,8 +83,8 @@ export const ENEMY_TEMPLATES = {
 // 关卡配置
 export const LEVELS = [
     { id: 1, name: '训练场', enemyCount: 10, enemyTypes: ['scout', 'soldier'], reward: 100, unlocked: true },
-    { id: 2, name: '前线哨站', enemyCount: 15, enemyTypes: ['scout', 'soldier', 'shotgunner'], reward: 200, unlocked: false },
-    { id: 3, name: '重兵把守', enemyCount: 20, enemyTypes: ['soldier', 'heavy', 'shotgunner'], reward: 350, unlocked: false },
-    { id: 4, name: '狙击地带', enemyCount: 18, enemyTypes: ['sniper', 'scout'], reward: 400, unlocked: false },
-    { id: 5, name: '混合部队', enemyCount: 25, enemyTypes: ['all'], reward: 600, unlocked: false }
+    { id: 2, name: '前线哨站', enemyCount: 15, enemyTypes: ['scout', 'soldier', 'shotgunner'], reward: 200, unlocked: true },
+    { id: 3, name: '重兵把守', enemyCount: 20, enemyTypes: ['soldier', 'heavy', 'shotgunner'], reward: 350, unlocked: true },
+    { id: 4, name: '狙击地带', enemyCount: 18, enemyTypes: ['sniper', 'scout'], reward: 400, unlocked: true },
+    { id: 5, name: '混合部队', enemyCount: 25, enemyTypes: ['all'], reward: 600, unlocked: true }
 ];
