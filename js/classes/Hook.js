@@ -1,4 +1,5 @@
 import { keys, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT } from '../config.js';
+import { playHookSound } from '../audio.js';
 
 // mech 由主模块设置
 let mechRef = null;
@@ -6,6 +7,7 @@ export function setMechRef(m) { mechRef = m; }
 
 class Hook {
     constructor(x, y, angle) {
+        playHookSound();
         this.x = x;
         this.y = y;
         this.startX = x;

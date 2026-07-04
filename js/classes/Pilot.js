@@ -1,4 +1,5 @@
 import { keys, bullets, particles, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT } from '../config.js';
+import { playShootSound } from '../audio.js';
 import Bullet from './Bullet.js';
 import Particle from './Particle.js';
 
@@ -112,6 +113,7 @@ class Pilot {
     
     shoot() {
         this.fireCooldown = this.fireRate;
+        playShootSound('vulcan');
         bullets.push(new Bullet(
             this.x, this.y,
             this.angle + (Math.random() - 0.5) * 0.15,

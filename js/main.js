@@ -10,6 +10,7 @@ import Bullet from './classes/Bullet.js';
 import LaserBeam from './classes/LaserBeam.js';
 import Particle from './classes/Particle.js';
 import Hook from './classes/Hook.js';
+import { initAudio, playShootSound, playExplosionSound, playHitSound, playDashSound, playHookSound, playRepairSound, playPickupSound, playBGM, stopBGM } from './audio.js';
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -325,6 +326,10 @@ function startLevel(level) {
         window.mouseY = e.clientY - rect.top;
     });
     
+    // 初始化音频并播放背景音乐
+    initAudio();
+    playBGM();
+    
     gameRunning = true;
     gameLoop();
 }
@@ -386,6 +391,7 @@ function stopGame() {
         cancelAnimationFrame(animationId);
         animationId = null;
     }
+    stopBGM();
 }
 
 function showMissionResult(won) {
@@ -585,6 +591,7 @@ function ejectPilot() {
 
 function destroyMech() {
     if (!mech) return;
+    playExplosionSound('large');
     // 大爆炸特效
     for (let k = 0; k < 60; k++) {
         const angle = Math.random() * Math.PI * 2;
@@ -623,6 +630,7 @@ function updateBullets() {
                 if (dist < enemies[j].size + (bullets[i].radius || 5)) {
                     const template = ENEMY_TEMPLATES[enemies[j].templateKey];
                     enemies[j].takeHit(bullets[i].damage);
+                    playHitSound();
                     
                     if (enemies[j].health <= 0) {
                         drops.push({
@@ -646,6 +654,7 @@ function updateBullets() {
                             });
                         }
                         missionExp += template.exp;
+                        playExplosionSound('small');
                         enemies.splice(j, 1);
                     }
                     bullets.splice(i, 1);
@@ -670,6 +679,7 @@ function updateBullets() {
                 if (dist < hitRadius + (bullets[i].radius || 5)) {
                     let damage = bullets[i].damage || 5;
                     target.takeHit(damage);
+                    playHitSound();
                     // 被击中特效
                     for (let k = 0; k < 5; k++) {
                         particles.push(new Particle(
@@ -978,8 +988,10 @@ function updateDrops() {
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < 30) {
             if (d.type === 'money') {
+                playPickupSound();
                 missionMoney += d.amount;
             } else if (d.type === 'repair') {
+                playPickupSound();
                 inventory.repairKits++;
             }
             // 拾取特效
@@ -1288,6 +1300,7 @@ document.addEventListener('keydown', (e) => {
         if (mech && inventory.repairKits > 0 && mech.health < mech.maxHealth) {
             inventory.repairKits--;
             mech.health = Math.min(mech.maxHealth, mech.health + 30);
+            playRepairSound();
             // 修理特效
             for (let k = 0; k < 10; k++) {
                 particles.push(new Particle(

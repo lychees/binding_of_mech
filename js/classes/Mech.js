@@ -1,4 +1,5 @@
 import { keys, particles, footprints, bullets, hooks, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT } from '../config.js';
+import { playShootSound } from '../audio.js';
 import { WEAPONS } from '../weapons.js';
 import Bullet from './Bullet.js';
 import LaserBeam from './LaserBeam.js';
@@ -771,6 +772,9 @@ class Mech {
                 this.heatLevel = w.overheatThreshold;
             }
         }
+        
+        // 音效
+        playShootSound(w.drawType);
         
         // 近战攻击
         if (w.drawType === 'beamSword') {
