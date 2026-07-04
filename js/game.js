@@ -834,6 +834,7 @@ function drawEvacuationProgress(x, y) {
 
 function evacuateMission() {
     gameRunning = false;
+    showEvacuationPrompt(false);
     showMissionResult(true);
     const resultTitle = document.getElementById('resultTitle');
     if (resultTitle) resultTitle.textContent = '撤离成功';
