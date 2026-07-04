@@ -222,8 +222,12 @@ class Mech {
         const cos = Math.cos(this.bodyAngle);
         const sin = Math.sin(this.bodyAngle);
         
-        const targetVX = (sin) * moveForward * this.maxSpeed + cos * moveSide * this.maxSpeed * 0.7;
-        const targetVY = (-cos) * moveForward * this.maxSpeed + sin * moveSide * this.maxSpeed * 0.7;
+        // 被钩爪拉拽时提升移动速度上限
+        const isHooked = hooks.some(h => h.state === 'hooked');
+        const effectiveMaxSpeed = isHooked ? this.maxSpeed * 2.5 : this.maxSpeed;
+        
+        const targetVX = (sin) * moveForward * effectiveMaxSpeed + cos * moveSide * effectiveMaxSpeed * 0.7;
+        const targetVY = (-cos) * moveForward * effectiveMaxSpeed + sin * moveSide * effectiveMaxSpeed * 0.7;
         
         if (!this.isDashing) {
             if (moveForward !== 0 || moveSide !== 0) {
