@@ -1199,7 +1199,8 @@ function renderCodexItems(content) {
         consumable: '消耗品',
         material: '材料',
         quest: '任务/回收',
-        module: '模块'
+        module: '模块',
+        pilotGear: '飞行员装备'
     };
 
     const byType = {};
@@ -1209,7 +1210,7 @@ function renderCodexItems(content) {
         byType[t].push(def);
     }
 
-    const order = ['consumable', 'material', 'quest', 'module'];
+    const order = ['consumable', 'material', 'quest', 'module', 'pilotGear'];
     let html = '<h3 style="color:#00d4ff;">道具</h3>';
     for (const type of order) {
         if (!byType[type]) continue;
