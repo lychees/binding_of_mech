@@ -1194,8 +1194,28 @@ function renderCodexItems(content) {
         content.innerHTML = '<div style="color:#888;">数据加载中...</div>';
         return;
     }
-    content.innerHTML = '<h3 style="color:#00d4ff;">道具</h3><div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px;">' +
-        Object.values(ITEM_DEFS).map(def => `
+
+    const typeNames = {
+        consumable: '消耗品',
+        material: '材料',
+        quest: '任务/回收',
+        module: '模块'
+    };
+
+    const byType = {};
+    for (const def of Object.values(ITEM_DEFS)) {
+        const t = def.type || 'other';
+        if (!byType[t]) byType[t] = [];
+        byType[t].push(def);
+    }
+
+    const order = ['consumable', 'material', 'quest', 'module'];
+    let html = '<h3 style="color:#00d4ff;">道具</h3>';
+    for (const type of order) {
+        if (!byType[type]) continue;
+        html += `<h4 style="color:#aaa; margin:20px 0 10px;">${typeNames[type] || type} (${byType[type].length})</h4>`;
+        html += '<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px;">' +
+            byType[type].map(def => `
             <div class="upgrade-item" style="border-color:${ITEM_RARITY[def.rarity]?.color || '#888'}">
                 <h4 style="color:${ITEM_RARITY[def.rarity]?.color || '#fff'}">${def.icon} ${def.name}</h4>
                 <div class="level">${ITEM_RARITY[def.rarity]?.name || def.rarity}</div>
@@ -1203,6 +1223,8 @@ function renderCodexItems(content) {
                 <div style="color:#888; font-size:11px;">${def.width}×${def.height} 最大堆叠 ${def.maxStack} 重量 ${def.weight}kg</div>
             </div>
         `).join('') + '</div>';
+    }
+    content.innerHTML = html;
 }
 
 function renderCodexWeapons(content) {

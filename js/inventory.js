@@ -103,6 +103,460 @@ export const ITEM_DEFS = {
         icon: '💾',
         description: '敌军加密数据，可在格纳库出售',
         weight: 2.0
+    },
+
+    // 普通材料
+    scrapMetal: {
+        id: 'scrapMetal',
+        name: '废金属',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 1,
+        maxStack: 99,
+        rarity: 'common',
+        icon: '🔩',
+        description: '从残骸中回收的金属材料，可熔炼后使用',
+        weight: 0.1
+    },
+    copperWire: {
+        id: 'copperWire',
+        name: '铜线束',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 1,
+        maxStack: 99,
+        rarity: 'common',
+        icon: '🧵',
+        description: '基础电子元件材料',
+        weight: 0.05
+    },
+    glassShard: {
+        id: 'glassShard',
+        name: '光学玻璃碎片',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 1,
+        maxStack: 99,
+        rarity: 'common',
+        icon: '🔍',
+        description: '破损的光学传感器残片，可回收镀膜',
+        weight: 0.05
+    },
+    plasticSheet: {
+        id: 'plasticSheet',
+        name: '聚合物板材',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 1,
+        maxStack: 99,
+        rarity: 'common',
+        icon: '📄',
+        description: '轻型护甲与绝缘层的原料',
+        weight: 0.05
+    },
+    rubberPad: {
+        id: 'rubberPad',
+        name: '减震橡胶',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 1,
+        maxStack: 99,
+        rarity: 'common',
+        icon: '🛞',
+        description: '用于缓冲关节冲击',
+        weight: 0.08
+    },
+    lubricant: {
+        id: 'lubricant',
+        name: '合成润滑油',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 1,
+        maxStack: 99,
+        rarity: 'common',
+        icon: '🛢️',
+        description: '保持机械关节运转顺滑',
+        weight: 0.1
+    },
+
+    // 优秀材料
+    ceramicPlate: {
+        id: 'ceramicPlate',
+        name: '陶瓷装甲板',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 2,
+        maxStack: 50,
+        rarity: 'uncommon',
+        icon: '🛡️',
+        description: '轻质高硬度装甲材料',
+        weight: 0.4
+    },
+    carbonFiber: {
+        id: 'carbonFiber',
+        name: '碳纤束',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 1,
+        maxStack: 99,
+        rarity: 'uncommon',
+        icon: '🧶',
+        description: '高强度轻量化结构材料',
+        weight: 0.05
+    },
+    thermalGel: {
+        id: 'thermalGel',
+        name: '导热凝胶',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 1,
+        maxStack: 99,
+        rarity: 'uncommon',
+        icon: '🧴',
+        description: '辅助武器散热的重要材料',
+        weight: 0.1
+    },
+    hydraulicFluid: {
+        id: 'hydraulicFluid',
+        name: '液压油',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 1,
+        maxStack: 99,
+        rarity: 'uncommon',
+        icon: '🧪',
+        description: '驱动重型机甲关节的流体',
+        weight: 0.12
+    },
+    opticsLens: {
+        id: 'opticsLens',
+        name: '精密透镜',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 1,
+        maxStack: 50,
+        rarity: 'uncommon',
+        icon: '🔎',
+        description: '传感器与激光武器的聚焦元件',
+        weight: 0.1
+    },
+
+    // 稀有材料
+    nanoMesh: {
+        id: 'nanoMesh',
+        name: '纳米编织网',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 1,
+        maxStack: 99,
+        rarity: 'rare',
+        icon: '🕸️',
+        description: '自修复涂层的关键材料',
+        weight: 0.05
+    },
+    superconductor: {
+        id: 'superconductor',
+        name: '超导线圈',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 2,
+        maxStack: 50,
+        rarity: 'rare',
+        icon: '🌀',
+        description: '能量核心与电磁武器的必需品',
+        weight: 0.3
+    },
+    plasteelBar: {
+        id: 'plasteelBar',
+        name: '塑钢锭',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 1,
+        maxStack: 99,
+        rarity: 'rare',
+        icon: '🧱',
+        description: '合金钢材的高级形态',
+        weight: 0.15
+    },
+    quantumChip: {
+        id: 'quantumChip',
+        name: '量子芯片',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 1,
+        maxStack: 50,
+        rarity: 'rare',
+        icon: '💠',
+        description: '高级火控与AI计算模块',
+        weight: 0.05
+    },
+    magneticCore: {
+        id: 'magneticCore',
+        name: '磁约束核心',
+        type: ITEM_TYPES.MATERIAL,
+        width: 2,
+        height: 2,
+        maxStack: 10,
+        rarity: 'rare',
+        icon: '🧲',
+        description: '微型反应堆的稳定组件',
+        weight: 1.0
+    },
+
+    // 史诗材料
+    fusionCell: {
+        id: 'fusionCell',
+        name: '聚变电池',
+        type: ITEM_TYPES.MATERIAL,
+        width: 2,
+        height: 1,
+        maxStack: 20,
+        rarity: 'epic',
+        icon: '☢️',
+        description: '高密度能量源，传说级武器的核心',
+        weight: 0.8
+    },
+    titaniumAlloy: {
+        id: 'titaniumAlloy',
+        name: '泰坦合金',
+        type: ITEM_TYPES.MATERIAL,
+        width: 2,
+        height: 1,
+        maxStack: 50,
+        rarity: 'epic',
+        icon: '⚙️',
+        description: '超高强度的航天级合金',
+        weight: 0.4
+    },
+    neuralProcessor: {
+        id: 'neuralProcessor',
+        name: '神经处理器',
+        type: ITEM_TYPES.MATERIAL,
+        width: 2,
+        height: 2,
+        maxStack: 5,
+        rarity: 'epic',
+        icon: '🧠',
+        description: '模拟驾驶员神经反射的尖端芯片',
+        weight: 0.6
+    },
+    phaseCrystal: {
+        id: 'phaseCrystal',
+        name: '相位水晶',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 1,
+        maxStack: 30,
+        rarity: 'epic',
+        icon: '💎',
+        description: '激光武器的能量聚焦晶体',
+        weight: 0.2
+    },
+
+    // 传说材料
+    starFragment: {
+        id: 'starFragment',
+        name: '星陨碎片',
+        type: ITEM_TYPES.MATERIAL,
+        width: 2,
+        height: 2,
+        maxStack: 5,
+        rarity: 'legendary',
+        icon: '🌠',
+        description: '来自外太空的未知金属，极其稀有',
+        weight: 1.5
+    },
+    voidEssence: {
+        id: 'voidEssence',
+        name: '虚空精华',
+        type: ITEM_TYPES.MATERIAL,
+        width: 1,
+        height: 1,
+        maxStack: 10,
+        rarity: 'legendary',
+        icon: '🔮',
+        description: '暗星燃料提纯后的终极形态',
+        weight: 0.2
+    },
+
+    // 消耗品
+    coolantCanister: {
+        id: 'coolantCanister',
+        name: '冷却剂罐',
+        type: ITEM_TYPES.CONSUMABLE,
+        width: 1,
+        height: 2,
+        maxStack: 5,
+        rarity: 'uncommon',
+        icon: '🧊',
+        description: '立即将火神炮温度降至 0',
+        effect: { resetHeat: true, target: 'mech' },
+        weight: 0.8
+    },
+    adrenalineShot: {
+        id: 'adrenalineShot',
+        name: '肾上腺素',
+        type: ITEM_TYPES.CONSUMABLE,
+        width: 1,
+        height: 1,
+        maxStack: 10,
+        rarity: 'uncommon',
+        icon: '💉',
+        description: '飞行员 10 秒内移动速度 +30%',
+        effect: { speedBoost: 0.3, duration: 600, target: 'pilot' },
+        weight: 0.2
+    },
+    shieldBooster: {
+        id: 'shieldBooster',
+        name: '护盾增幅器',
+        type: ITEM_TYPES.CONSUMABLE,
+        width: 1,
+        height: 1,
+        maxStack: 5,
+        rarity: 'rare',
+        icon: '🛡️',
+        description: '机甲 8 秒内受到的伤害 -50%',
+        effect: { damageReduction: 0.5, duration: 480, target: 'mech' },
+        weight: 0.5
+    },
+    targetingChip: {
+        id: 'targetingChip',
+        name: '目标锁定芯片',
+        type: ITEM_TYPES.CONSUMABLE,
+        width: 1,
+        height: 1,
+        maxStack: 5,
+        rarity: 'rare',
+        icon: '🎯',
+        description: '12 秒内武器散布 -50%',
+        effect: { accuracyBoost: 0.5, duration: 720, target: 'mech' },
+        weight: 0.3
+    },
+    overclockUnit: {
+        id: 'overclockUnit',
+        name: '超频单元',
+        type: ITEM_TYPES.CONSUMABLE,
+        width: 2,
+        height: 1,
+        maxStack: 3,
+        rarity: 'epic',
+        icon: '⚡',
+        description: '机甲 6 秒内射速 +50%，但持续过热',
+        effect: { fireRateBoost: 0.5, heatGain: true, duration: 360, target: 'mech' },
+        weight: 0.8
+    },
+    naniteCanister: {
+        id: 'naniteCanister',
+        name: '纳米修复罐',
+        type: ITEM_TYPES.CONSUMABLE,
+        width: 1,
+        height: 2,
+        maxStack: 5,
+        rarity: 'epic',
+        icon: '🧬',
+        description: '30 秒内缓慢恢复 100 点机甲生命值',
+        effect: { regen: 100, duration: 1800, target: 'mech' },
+        weight: 0.9
+    },
+
+    // 任务/杂物收集品
+    dogTag: {
+        id: 'dogTag',
+        name: '士兵铭牌',
+        type: ITEM_TYPES.QUEST,
+        width: 1,
+        height: 1,
+        maxStack: 20,
+        rarity: 'common',
+        icon: '🪖',
+        description: '阵亡士兵的身份识别牌',
+        weight: 0.1
+    },
+    brokenCircuit: {
+        id: 'brokenCircuit',
+        name: '烧毁电路板',
+        type: ITEM_TYPES.QUEST,
+        width: 1,
+        height: 1,
+        maxStack: 20,
+        rarity: 'common',
+        icon: '🔌',
+        description: '敌人机甲上的损坏电子元件',
+        weight: 0.1
+    },
+    enemyInsignia: {
+        id: 'enemyInsignia',
+        name: '敌军徽章',
+        type: ITEM_TYPES.QUEST,
+        width: 1,
+        height: 1,
+        maxStack: 10,
+        rarity: 'uncommon',
+        icon: '🎖️',
+        description: '敌方精锐部队的身份证明',
+        weight: 0.1
+    },
+    commandSeal: {
+        id: 'commandSeal',
+        name: '指挥印章',
+        type: ITEM_TYPES.QUEST,
+        width: 1,
+        height: 1,
+        maxStack: 5,
+        rarity: 'rare',
+        icon: '🔏',
+        description: '敌军指挥官持有的加密印章',
+        weight: 0.1
+    },
+    battlefieldPhoto: {
+        id: 'battlefieldPhoto',
+        name: '战场照片',
+        type: ITEM_TYPES.QUEST,
+        width: 1,
+        height: 1,
+        maxStack: 1,
+        rarity: 'epic',
+        icon: '📷',
+        description: '记录着某个重要时刻的照片',
+        weight: 0.1
+    },
+
+    // 值钱回收品
+    goldBullion: {
+        id: 'goldBullion',
+        name: '金条',
+        type: ITEM_TYPES.MATERIAL,
+        width: 2,
+        height: 1,
+        maxStack: 10,
+        rarity: 'epic',
+        icon: '🏆',
+        description: '可直接出售换取大量金币',
+        weight: 2.0
+    },
+    encryptedDrive: {
+        id: 'encryptedDrive',
+        name: '加密硬盘',
+        type: ITEM_TYPES.QUEST,
+        width: 1,
+        height: 1,
+        maxStack: 5,
+        rarity: 'rare',
+        icon: '💽',
+        description: '存有敌军情报，价值不菲',
+        weight: 0.2
+    },
+    mechEmblem: {
+        id: 'mechEmblem',
+        name: '机甲徽记',
+        type: ITEM_TYPES.QUEST,
+        width: 1,
+        height: 1,
+        maxStack: 3,
+        rarity: 'legendary',
+        icon: '🎗️',
+        description: '击败强大机甲后获得的荣誉象征',
+        weight: 0.1
     }
 };
 
