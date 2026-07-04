@@ -244,17 +244,19 @@ class Mech extends Entity {
 
     getInput() {
         return this.input || {
-            forward: keys['w'] || keys['W'],
-            backward: keys['s'] || keys['S'],
-            strafeLeft: keys['a'] || keys['A'],
-            strafeRight: keys['d'] || keys['D'],
-            weaponLeft: keys['ArrowLeft'],
-            weaponRight: keys['ArrowRight'],
-            turnLeft: keys['q'] || keys['Q'],
-            turnRight: keys['e'] || keys['E'],
-            shoot: keys[' '],
-            hook: keys['f'] || keys['F'],
-            dash: keys['Shift'],
+            forward: false,
+            backward: false,
+            strafeLeft: false,
+            strafeRight: false,
+            left: false,
+            right: false,
+            weaponLeft: false,
+            weaponRight: false,
+            turnLeft: false,
+            turnRight: false,
+            shoot: false,
+            hook: false,
+            dash: false,
             weaponSwitch: 0
         };
     }
@@ -262,19 +264,11 @@ class Mech extends Entity {
     handleWeaponSwitch() {
         const input = this.getInput();
         const idx = input.weaponSwitch ? input.weaponSwitch - 1 : -1;
-        if (idx >= 0 && idx < this.weaponKeys.length && this.weaponKeys[idx]) {
+        if (idx >= 0 && idx < this.weaponList.length) {
             this.currentWeapon = this.weaponList[idx];
             this.isSwinging = false;
             if (this.playerTag !== 'remote') broadcastAction('weaponSwitch', { index: idx });
             return;
-        }
-        for (let i = 0; i < this.weaponKeys.length; i++) {
-            if (keys[this.weaponKeys[i]]) {
-                this.currentWeapon = this.weaponList[i];
-                keys[this.weaponKeys[i]] = false;
-                this.isSwinging = false;
-                break;
-            }
         }
     }
 
@@ -489,19 +483,6 @@ class Mech extends Entity {
         this.x += this.velocityX;
         this.y += this.velocityY;
         this.boundPosition(30, 30, WORLD_WIDTH - 30, WORLD_HEIGHT - 30);
-
-        for (const obs of obstacles) {
-            if (this.x + this.bodyWidth / 2 > obs.x && this.x - this.bodyWidth / 2 < obs.x + obs.width &&
-                this.y + this.bodyHeight / 2 > obs.y && this.y - this.bodyHeight / 2 < obs.y + obs.height) {
-                const dx = this.x - (obs.x + obs.width / 2);
-                const dy = this.y - (obs.y + obs.height / 2);
-                const d = Math.sqrt(dx * dx + dy * dy);
-                if (d > 0) {
-                    this.x += (dx / d) * 3;
-                    this.y += (dy / d) * 3;
-                }
-            }
-        }
     }
 
     updateTurning() {
@@ -511,7 +492,6 @@ class Mech extends Entity {
             this.turnDeceleration, 0.15);
         this.bodyAngle += this.turnVelocity;
 
-        // No upper body turning from strafe keys; only weapon aim keys
         this.upperTurnVelocity = this.applyTurn(this.upperTurnVelocity,
             input.weaponRight ? -this.maxUpperTurnSpeed : input.weaponLeft ? this.maxUpperTurnSpeed : 0,
             this.upperTurnDeceleration, 0.12);

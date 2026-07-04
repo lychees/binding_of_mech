@@ -1,5 +1,5 @@
 // 游戏核心：关卡启动、主循环、绘制、掉落物、HUD、小地图、撤离点
-import { keys, bullets, particles, footprints, hooks, obstacles, enemies, drops, inventory, setCamera, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, setMechBag, setPilotBag } from './config.js?v=2';
+import { keys, bullets, particles, footprints, hooks, obstacles, enemies, drops, inventory, setCamera, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, setMechBag, setPilotBag, world } from './config.js?v=2';
 import { ENEMY_TEMPLATES, LEVELS } from './enemies.js?v=2';
 import { WEAPONS } from './weapons.js?v=2';
 import { addMoneyExp } from '../data/save.js?v=2';
@@ -18,13 +18,14 @@ import { ALL_MODULES, calculateMechBuild } from './modules.js?v=2';
 import { rollBlueprintDrops } from './blueprints.js?v=2';
 import { dist, normalize } from './utils.js?v=2';
 import { getPlayerSave, setPlayerSave, getWeaponEditorData } from './ui.js?v=2';
-import { updateInputs, p1Input, p2Input, resetInputs } from './input.js?v=2';
+import { updateInputs, resetInputs } from './engine/InputSystem.js?v=2';
+import { gameTick, updateParticles, updateHooks } from './engine/GameLoopSystem.js?v=2';
 import {
     initOnlineGame, setNetworkManager, resetOnlineGame, handleNetworkMessage,
     isOnlineGame, isOnlineHost, getNetworkPing, syncLocalPlayer, syncWorldState,
     updateRemotePlayer, broadcastAction, getRemotePlayer
 } from './net/OnlineGame.js?v=2';
-import { GridInventory, InventoryItem, createDropFromItem, ITEM_RARITY } from './inventory.js?v=2';
+import { GridInventory, InventoryItem, createDropFromItem } from './inventory.js?v=2';
 
 let _currentPlayerSave = null;
 
@@ -47,26 +48,26 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', resizeCanvas);
 
-window.enemies = enemies;
-window.obstacles = obstacles;
-window.bullets = bullets;
-window.particles = particles;
-window.hooks = hooks;
-window.drops = drops;
+window.enemies = world.enemies;
+window.obstacles = world.obstacles;
+window.bullets = world.bullets;
+window.particles = world.particles;
+window.hooks = world.hooks;
+window.drops = world.drops;
 window.inventory = inventory;
 
-let players = [];
+let players = world.players;
 let mech;
-let pilot = null;
-let isPilotActive = false;
+let pilot = world.pilot;
+let isPilotActive = world.isPilotActive;
 let currentLevel = null;
 let missionMoney = 0;
 let missionExp = 0;
 let missionMaterials = 0;
 let gameRunning = false;
 let animationId = null;
-let fortress = null;
-const floatingTexts = [];
+let fortress = world.fortress;
+const floatingTexts = world.floatingTexts;
 let isMultiplayer = false;
 
 export function getMech() { return mech; }
@@ -106,7 +107,10 @@ export function startLevel(level, playerSave, multiplayer = false) {
     enemies.length = 0;
     drops.length = 0;
     floatingTexts.length = 0;
-    players = [];
+    players.length = 0;
+    world.fortress = null;
+    world.pilot = null;
+    world.isPilotActive = false;
 
     resetInputs();
     document.getElementById('missionResult').style.display = 'none';
@@ -117,6 +121,7 @@ export function startLevel(level, playerSave, multiplayer = false) {
     generateEnemiesForLevel(level);
 
     fortress = null;
+    world.fortress = null;
     if (level.id >= 3 && Math.random() < 0.3 + level.id * 0.1) {
         spawnFortress();
     }
@@ -152,6 +157,8 @@ export function startLevel(level, playerSave, multiplayer = false) {
 
     pilot = null;
     isPilotActive = false;
+    world.pilot = null;
+    world.isPilotActive = false;
 
     import('./classes/Enemy.js').then(m => {
         m.setMechRef(mech);
@@ -268,6 +275,7 @@ function setupWeapons(build, playerSave, targetMech) {
 
 function spawnFortress() {
     fortress = new Fortress(200 + Math.random() * (WORLD_WIDTH - 400), 200 + Math.random() * (WORLD_HEIGHT - 400));
+    world.fortress = fortress;
     const guardCount = 6 + Math.floor(Math.random() * 6);
     for (let i = 0; i < guardCount; i++) {
         const minion = fortress.spawnMinion();
@@ -334,154 +342,136 @@ function generateEnemiesForLevel(level) {
 
 function gameLoop() {
     if (!gameRunning) return;
-    updateInputs();
+    gameTick(ctx, {
+        camera: updateCamera,
+        fortress: updateFortress,
+        ai: updateEnemies,
+        player: updatePlayers,
+        online: updateOnline,
+        pilot: updatePilot,
+        particles: updateParticles,
+        hooks: updateHooks,
+        drops: () => { updateDrops(); updateFloatingTexts(); },
+        hud: () => {
+            if (isOnlineGame()) {
+                const remote = getRemotePlayer();
+                if (remote && !remote.isDead) remote.draw();
+            }
+            drawWeaponUI();
+            drawMinimap();
+            updateHUD();
+        }
+    });
+    if (checkGameOver()) return;
+    checkMissionEnd();
+    animationId = requestAnimationFrame(gameLoop);
+}
 
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+function updateCamera() {
     const cameraTarget = isPilotActive && pilot && !pilot.isDead ? pilot : getCameraCenter();
     setCamera(
         Math.max(0, Math.min(WORLD_WIDTH - canvas.width, cameraTarget.x - canvas.width / 2)),
         Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, cameraTarget.y - canvas.height / 2))
     );
+}
 
-    drawGrid();
-    drawObstacles();
-
-    if (fortress) {
-        fortress.draw();
-        const minion = fortress.update(mech, pilot, isPilotActive);
-        if (minion) enemies.push(new Enemy(minion.x, minion.y, minion.type));
-        if (fortress.isDead) {
-            missionMoney += 500;
-            missionExp += 200;
-            getPlayerSave().materials += 50;
-            particles.push(...createSpark(fortress.x, fortress.y, '#ff8800', 100, 8));
-            spawnFortressWreckage(fortress.x, fortress.y);
-            fortress = null;
-        }
+function updateFortress() {
+    if (!fortress) return;
+    const minion = fortress.update(mech, pilot, isPilotActive);
+    if (minion) enemies.push(new Enemy(minion.x, minion.y, minion.type));
+    if (fortress.isDead) {
+        missionMoney += 500;
+        missionExp += 200;
+        getPlayerSave().materials += 50;
+        particles.push(...createSpark(fortress.x, fortress.y, '#ff8800', 100, 8));
+        spawnFortressWreckage(fortress.x, fortress.y);
+        fortress = null;
+        world.fortress = null;
     }
+}
 
+function updateEnemies() {
     for (let i = enemies.length - 1; i >= 0; i--) {
         enemies[i].update();
-        enemies[i].draw();
         if (enemies[i].isDead || enemies[i].health <= 0) {
             const template = ENEMY_TEMPLATES[enemies[i].templateKey];
             if (template) spawnDrops(enemies[i].x, enemies[i].y, template, 'enemy');
             enemies.splice(i, 1);
         }
     }
+}
 
+function updatePlayers() {
     if (!isPilotActive) {
-        for (const p of players) {
-            for (const enemy of enemies) p.resolveCollision(enemy);
-        }
-        if (keys['x'] || keys['X']) {
+        if (getInputState('p1').eject) {
             ejectPilot();
-            keys['x'] = false;
-            keys['X'] = false;
         }
+    }
+    for (const p of players) {
+        if (p.isDead) continue;
+        if (isOnlineGame() && p.playerTag === 'remote') continue;
+        const input = p === players[0] ? getInputState('p1') : getInputState('p2');
+        if (!input) continue;
+        p.update(input);
+    }
+}
+
+function updateOnline() {
+    if (!isOnlineGame()) return;
+    updateRemotePlayer();
+    syncLocalPlayer(mech);
+    syncWorldState({ enemies, drops });
+}
+
+function updatePilot() {
+    if (!isPilotActive || !pilot) return;
+    pilot.update();
+    for (const p of players) {
+        if (p.isDead) continue;
+        const distToMech = dist(pilot.x, pilot.y, p.x, p.y);
+        if (distToMech < 40 && getInputState('p1').useItem) {
+            if (p.health <= 0) p.health = p.maxHealth * 0.3;
+            p.isDead = false;
+            p.alreadyExploded = false;
+            p.isPilotEjected = false;
+            p.x = pilot.x;
+            p.y = pilot.y;
+            isPilotActive = false;
+            pilot = null;
+            world.isPilotActive = false;
+            world.pilot = null;
+            break;
+        }
+    }
+}
+
+function checkGameOver() {
+    if (!isPilotActive) {
         const alivePlayers = players.filter(p => !p.isDead);
         if (alivePlayers.length === 0) {
             for (const p of players) destroyMech(p);
             gameRunning = false;
             showMissionResult(false);
-            return;
+            return true;
         }
     } else {
         for (const p of players) {
             if (p.isDead) destroyMech(p);
         }
-    }
-
-    for (const p of players) {
-        if (p.isDead) continue;
-        if (isOnlineGame() && p.playerTag === 'remote') continue;
-        const input = isOnlineGame() ? p1Input : (p === players[0] ? p1Input : p2Input);
-        if (!input) continue;
-        p.update(input);
-        p.draw();
-    }
-
-    if (isOnlineGame()) {
-        updateRemotePlayer();
-        const remote = getRemotePlayer();
-        if (remote && !remote.isDead) {
-            remote.draw();
-        }
-        syncLocalPlayer(mech);
-        syncWorldState({ enemies, drops });
-    }
-
-    // 玩家之间碰撞
-    for (let i = 0; i < players.length; i++) {
-        for (let j = i + 1; j < players.length; j++) {
-            if (!players[i].isDead && !players[j].isDead) {
-                players[i].resolveCollision(players[j]);
-            }
-        }
-    }
-
-    if (isPilotActive && pilot) {
-        pilot.update();
-        pilot.draw();
-        for (const p of players) {
-            if (p.isDead) continue;
-            const distToMech = dist(pilot.x, pilot.y, p.x, p.y);
-            if (distToMech < 40 && (keys['g'] || keys['G'])) {
-                if (p.health <= 0) p.health = p.maxHealth * 0.3;
-                p.isDead = false;
-                p.alreadyExploded = false;
-                p.isPilotEjected = false;
-                p.x = pilot.x;
-                p.y = pilot.y;
-                isPilotActive = false;
-                pilot = null;
-                keys['g'] = false;
-                keys['G'] = false;
-                break;
-            }
-        }
         if (pilot?.isDead) {
             gameRunning = false;
             showMissionResult(false);
-            return;
+            return true;
         }
     }
+    return false;
+}
 
-    for (let i = 0; i < enemies.length; i++) {
-        for (let j = i + 1; j < enemies.length; j++) {
-            enemies[i].resolveCollision(enemies[j]);
-        }
-    }
-
-    updateBullets();
-
-    for (let i = particles.length - 1; i >= 0; i--) {
-        particles[i].update();
-        particles[i].draw();
-        if (particles[i].life <= 0) particles.splice(i, 1);
-    }
-
-    for (let i = hooks.length - 1; i >= 0; i--) {
-        hooks[i].update(hooks[i].owner);
-        hooks[i].draw();
-        if (hooks[i].state === 'done') hooks.splice(i, 1);
-    }
-
-    updateDrops();
-    updateFloatingTexts();
-    drawWeaponUI();
-    drawMinimap();
-    updateHUD();
-
+function checkMissionEnd() {
     if (enemies.length === 0 && !fortress && gameRunning) {
         gameRunning = false;
         showMissionResult(true);
-        return;
     }
-
-    animationId = requestAnimationFrame(gameLoop);
 }
 
 function getCameraCenter() {
@@ -576,8 +566,10 @@ function spawnFortressWreckage(x, y) {
 function ejectPilot() {
     if (isPilotActive || !mech) return;
     isPilotActive = true;
+    world.isPilotActive = true;
     mech.isPilotEjected = true;
     pilot = new Pilot(mech.x, mech.y);
+    world.pilot = pilot;
     pilot.inventory = window.pilotBag;
     if (window.activePilot) applyPilotToPilotEntity(pilot, window.activePilot);
     particles.push(...createSpark(mech.x, mech.y, '#ffcc00', 10, 4));
@@ -595,287 +587,6 @@ function destroyMech(target) {
     target.isDead = true;
     target.velocityX = 0;
     target.velocityY = 0;
-}
-
-function updateBullets() {
-    for (let i = bullets.length - 1; i >= 0; i--) {
-        const b = bullets[i];
-        if (b instanceof Missile) {
-            b.update(enemies, players, pilot, isPilotActive);
-        } else {
-            b.update();
-        }
-        b.draw();
-
-        if (b instanceof Missile) {
-            if (!b.isEnemyBullet) {
-                let hit = false;
-                for (let j = enemies.length - 1; j >= 0; j--) {
-                    const d = dist(b.x, b.y, enemies[j].x, enemies[j].y);
-                    if (d < enemies[j].size + b.radius) {
-                        const template = ENEMY_TEMPLATES[enemies[j].templateKey];
-                        enemies[j].takeHit(b.damage);
-                        b.explode();
-                        playHitSound();
-                        if (enemies[j].health <= 0) {
-                            spawnDrops(enemies[j].x, enemies[j].y, template, 'enemy');
-                            playExplosionSound('small');
-                            enemies.splice(j, 1);
-                        }
-                        hit = true;
-                        break;
-                    }
-                }
-                if (!hit && fortress && !fortress.isDead) {
-                    if (dist(b.x, b.y, fortress.x, fortress.y) < fortress.size + b.radius) {
-                        fortress.takeHit(b.damage);
-                        b.explode();
-                        playHitSound();
-                        hit = true;
-                    }
-                }
-                if (hit) {
-                    bullets.splice(i, 1);
-                    continue;
-                }
-            } else {
-                const targets = [];
-                for (const p of players) {
-                    if (p.health > 0) targets.push({ t: p, r: 20 });
-                }
-                if (isPilotActive && pilot && !pilot.isDead) targets.push({ t: pilot, r: pilot.size + 4 });
-
-                let hit = false;
-                for (const { t, r } of targets) {
-                    if (dist(b.x, b.y, t.x, t.y) < r + b.radius) {
-                        t.takeHit(b.damage || 5);
-                        b.explode();
-                        playHitSound();
-                        particles.push(...createSpark(t.x, t.y, '#00d4ff', 5, 4));
-                        hit = true;
-
-                        if (players.includes(t) && t.health <= 0) {
-                            t.health = 0;
-                            t.isDead = true;
-                            destroyMech(t);
-                            if (!isPilotActive && players.every(p => p.isDead)) {
-                                gameRunning = false;
-                                showMissionResult(false);
-                                return;
-                            }
-                        }
-                        if (t === pilot && pilot.isDead) {
-                            gameRunning = false;
-                            showMissionResult(false);
-                            return;
-                        }
-                        break;
-                    }
-                }
-                if (hit) {
-                    bullets.splice(i, 1);
-                    continue;
-                }
-            }
-        }
-
-        if (b instanceof Bullet && !b.isEnemyBullet) {
-            let hitEnemy = false;
-            for (let j = enemies.length - 1; j >= 0; j--) {
-                const d = dist(b.x, b.y, enemies[j].x, enemies[j].y);
-                if (d < enemies[j].size + (b.radius || 5)) {
-                    const template = ENEMY_TEMPLATES[enemies[j].templateKey];
-                    enemies[j].takeHit(b.damage);
-                    playHitSound();
-                    if (enemies[j].health <= 0) {
-                        spawnDrops(enemies[j].x, enemies[j].y, template, 'enemy');
-                        playExplosionSound('small');
-                        enemies.splice(j, 1);
-                    }
-                    bullets.splice(i, 1);
-                    hitEnemy = true;
-                    break;
-                }
-            }
-            if (!hitEnemy && fortress && !fortress.isDead) {
-                if (dist(b.x, b.y, fortress.x, fortress.y) < fortress.size + (b.radius || 5)) {
-                    fortress.takeHit(b.damage);
-                    playHitSound();
-                    bullets.splice(i, 1);
-                }
-            }
-        }
-
-        if (b instanceof Bullet && b.isEnemyBullet) {
-            const targets = [];
-            for (const p of players) {
-                if (p.health > 0) targets.push({ t: p, r: 20 });
-            }
-            if (isPilotActive && pilot && !pilot.isDead) targets.push({ t: pilot, r: pilot.size + 4 });
-
-            let hit = false;
-            for (const { t, r } of targets) {
-                if (dist(b.x, b.y, t.x, t.y) < r + (b.radius || 5)) {
-                    t.takeHit(b.damage || 5);
-                    playHitSound();
-                    particles.push(...createSpark(t.x, t.y, '#00d4ff', 5, 4));
-                    hit = true;
-
-                    if (players.includes(t) && t.health <= 0) {
-                        t.health = 0;
-                        t.isDead = true;
-                        destroyMech(t);
-                        if (!isPilotActive && players.every(p => p.isDead)) {
-                            gameRunning = false;
-                            showMissionResult(false);
-                            return;
-                        }
-                    }
-                    if (t === pilot && pilot.isDead) {
-                        gameRunning = false;
-                        showMissionResult(false);
-                        return;
-                    }
-                    break;
-                }
-            }
-            if (hit) {
-                bullets.splice(i, 1);
-                continue;
-            }
-        }
-
-        if (b instanceof LaserBeam && !b.isEnemyBullet) {
-            const cos = Math.cos(b.angle);
-            const sin = Math.sin(b.angle);
-            for (let j = enemies.length - 1; j >= 0; j--) {
-                const dx = enemies[j].x - b.x;
-                const dy = enemies[j].y - b.y;
-                const proj = dx * sin + dy * (-cos);
-                const clamped = Math.max(0, Math.min(b.length, proj));
-                const cx = b.x + sin * clamped;
-                const cy = b.y - cos * clamped;
-                if (dist(enemies[j].x, enemies[j].y, cx, cy) < enemies[j].size + b.width) {
-                    const damage = b.getDamageAtDistance(clamped);
-                    enemies[j].takeHit(damage);
-                    if (enemies[j].health <= 0) {
-                        const template = ENEMY_TEMPLATES[enemies[j].templateKey];
-                        if (template) spawnDrops(enemies[j].x, enemies[j].y, template, 'enemy');
-                        enemies.splice(j, 1);
-                    }
-                }
-            }
-            if (fortress && !fortress.isDead) {
-                const dx = fortress.x - b.x;
-                const dy = fortress.y - b.y;
-                const proj = dx * sin + dy * (-cos);
-                const clamped = Math.max(0, Math.min(b.length, proj));
-                const cx = b.x + sin * clamped;
-                const cy = b.y - cos * clamped;
-                if (dist(fortress.x, fortress.y, cx, cy) < fortress.size + b.width) {
-                    const damage = b.getDamageAtDistance(clamped);
-                    fortress.takeHit(damage);
-                }
-            }
-        }
-
-        if (b && b.life <= 0) {
-            if (b instanceof Missile) b.explode();
-            bullets.splice(i, 1);
-        }
-    }
-
-    for (let i = bullets.length - 1; i >= 0; i--) {
-        if (!(bullets[i] instanceof Bullet || bullets[i] instanceof LaserBeam || bullets[i] instanceof Missile)) continue;
-        for (let j = obstacles.length - 1; j >= 0; j--) {
-            const obs = obstacles[j];
-            if (bullets[i].x >= obs.x && bullets[i].x <= obs.x + obs.width &&
-                bullets[i].y >= obs.y && bullets[i].y <= obs.y + obs.height) {
-                if (obs.health !== undefined) {
-                    obs.health -= bullets[i].damage || 10;
-                    if (obs.health <= 0) {
-                        particles.push(...createSpark(obs.x + obs.width / 2, obs.y + obs.height / 2, obs.isTree ? '#2a5a2a' : '#888', 8, 4));
-                        obstacles.splice(j, 1);
-                    }
-                }
-                if (bullets[i] instanceof Missile) bullets[i].explode();
-                bullets.splice(i, 1);
-                break;
-            }
-        }
-    }
-}
-
-function drawGrid() {
-    ctx.strokeStyle = '#2a2a2a';
-    ctx.lineWidth = 0.5;
-    const startX = Math.floor(cameraX / 40) * 40;
-    const startY = Math.floor(cameraY / 40) * 40;
-    for (let x = startX; x < cameraX + canvas.width; x += 40) {
-        ctx.beginPath();
-        ctx.moveTo(x - cameraX, 0);
-        ctx.lineTo(x - cameraX, canvas.height);
-        ctx.stroke();
-    }
-    for (let y = startY; y < cameraY + canvas.height; y += 40) {
-        ctx.beginPath();
-        ctx.moveTo(0, y - cameraY);
-        ctx.lineTo(canvas.width, y - cameraY);
-        ctx.stroke();
-    }
-}
-
-function drawObstacles() {
-    for (const obs of obstacles) {
-        const sx = obs.x - cameraX;
-        const sy = obs.y - cameraY;
-        if (sx + obs.width < 0 || sx > canvas.width || sy + obs.height < 0 || sy > canvas.height) continue;
-
-        if (obs.isTree) {
-            const cx = sx + obs.width / 2;
-            const cy = sy + obs.height / 2;
-            const radius = obs.width / 2;
-            ctx.fillStyle = obs.trunkColor;
-            ctx.fillRect(cx - 3, cy + radius * 0.3, 6, radius * 0.7);
-            ctx.fillStyle = obs.health / obs.maxHealth > 0.5 ? obs.color : '#8a6a3a';
-            ctx.beginPath();
-            ctx.arc(cx, cy - radius * 0.2, radius * 0.8, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = 'rgba(100, 200, 100, 0.3)';
-            ctx.beginPath();
-            ctx.arc(cx - radius * 0.2, cy - radius * 0.4, radius * 0.4, 0, Math.PI * 2);
-            ctx.fill();
-        } else if (obs.isWreckage) {
-            ctx.save();
-            ctx.translate(sx + obs.width / 2, sy + obs.height / 2);
-            ctx.rotate(Math.PI / 8);
-            ctx.fillStyle = '#2a1a1a';
-            ctx.fillRect(-obs.width / 2, -obs.height / 2, obs.width, obs.height);
-            ctx.strokeStyle = '#5a3a3a';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(-obs.width / 2, -obs.height / 2, obs.width, obs.height);
-            ctx.fillStyle = '#ff4400';
-            ctx.beginPath();
-            ctx.arc(-20, -10, 6, 0, Math.PI * 2);
-            ctx.arc(15, 20, 4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(255, 100, 0, 0.3)';
-            ctx.lineWidth = 2;
-            for (let i = 0; i < 6; i++) {
-                ctx.beginPath();
-                ctx.moveTo((Math.random() - 0.5) * obs.width, (Math.random() - 0.5) * obs.height);
-                ctx.lineTo((Math.random() - 0.5) * obs.width, (Math.random() - 0.5) * obs.height);
-                ctx.stroke();
-            }
-            ctx.restore();
-        } else {
-            ctx.fillStyle = obs.color;
-            ctx.fillRect(sx, sy, obs.width, obs.height);
-            ctx.strokeStyle = '#666';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(sx, sy, obs.width, obs.height);
-        }
-    }
 }
 
 function drawWeaponUI() {
@@ -1003,62 +714,6 @@ function updateDrops() {
             drops.splice(i, 1);
             continue;
         }
-        const blink = Math.sin(Date.now() / 200) > 0;
-        const alpha = d.life < 120 ? d.life / 120 : 1;
-        ctx.globalAlpha = alpha;
-
-        const sx = d.x - cameraX;
-        const sy = d.y - cameraY;
-        if (d.type === 'money') {
-            ctx.fillStyle = blink ? '#ffcc00' : '#ffaa44';
-            ctx.beginPath();
-            ctx.arc(sx, sy, d.radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 10px monospace';
-            ctx.fillText('$', sx - 3, sy + 3);
-        } else if (d.type === 'item') {
-            const item = d.item;
-            const def = item.def;
-            const size = Math.max(10, Math.max(def.width, def.height) * 10);
-            ctx.fillStyle = ITEM_RARITY[def.rarity].color;
-            ctx.fillRect(sx - size / 2, sy - size / 2, size, size);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(sx - size / 2, sy - size / 2, size, size);
-            ctx.fillStyle = '#000';
-            ctx.font = 'bold 12px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText(def.icon, sx, sy + 4);
-            ctx.textAlign = 'left';
-            if (item.amount > 1) {
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 9px monospace';
-                ctx.fillText(item.amount, sx - size / 2 + 2, sy + size / 2 - 2);
-            }
-        } else if (d.type === 'repair') {
-            ctx.fillStyle = blink ? '#00ffaa' : '#00ff88';
-            ctx.beginPath();
-            ctx.arc(sx, sy, d.radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 10px monospace';
-            ctx.fillText('+', sx - 3, sy + 3);
-        } else if (d.type === 'crate') {
-            const cx = sx - d.radius;
-            const cy = sy - d.radius;
-            ctx.fillStyle = d.crateType === 'alloySteel' ? '#6a6a6a' : '#2a004a';
-            ctx.fillRect(cx, cy, d.radius * 2, d.radius * 2);
-            ctx.strokeStyle = d.crateType === 'alloySteel' ? '#aaaaaa' : '#8a4aff';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(cx, cy, d.radius * 2, d.radius * 2);
-            ctx.fillStyle = 'rgba(255,255,255,0.2)';
-            ctx.fillRect(cx + 2, cy + 2, d.radius * 2 - 4, 4);
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 9px monospace';
-            ctx.fillText(d.crateType === 'alloySteel' ? '钢' : '燃', sx - 4, sy + 3);
-        }
-        ctx.globalAlpha = 1;
 
         const pickupTargets = isPilotActive && pilot ? [pilot] : players.filter(p => !p.isDead);
         let picked = false;
@@ -1111,17 +766,6 @@ function updateFloatingTexts() {
         const ft = floatingTexts[i];
         ft.y += ft.vy;
         ft.life--;
-        const alpha = ft.life / ft.maxLife;
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = '#00ccff';
-        ctx.font = 'bold 12px monospace';
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        const sx = ft.x - cameraX;
-        const sy = ft.y - cameraY;
-        ctx.strokeText(ft.text, sx, sy);
-        ctx.fillText(ft.text, sx, sy);
-        ctx.globalAlpha = 1;
         if (ft.life <= 0) floatingTexts.splice(i, 1);
     }
 }
@@ -1238,19 +882,13 @@ document.addEventListener('keydown', (e) => {
     }
     if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
-        const bag = isPilotActive && pilot ? window.pilotBag : window.mechBag;
-        const target = isPilotActive && pilot ? pilot : (players.find(p => !p.isDead) || mech);
-        if (bag && target) {
-            const item = bag.findBestUsable(target, 'heal');
-            if (item) {
-                const result = bag.useItem(item, target);
-                if (result.used) {
-                    playRepairSound();
-                    particles.push(...createSpark(target.x, target.y, '#00ff88', 10, 3));
-                    showFloatingText(target.x, target.y - 30, `+${result.heal || result.energy || ''} ${item.def.name}`);
-                }
-            }
-        }
+        const p1 = getInputState('p1');
+        p1.useItem = true;
+    }
+    if (e.key === 'x' || e.key === 'X') {
+        e.preventDefault();
+        const p1 = getInputState('p1');
+        p1.eject = true;
     }
     if (e.key === 'Escape') {
         stopGame();
@@ -1261,4 +899,12 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('keyup', (e) => {
     keys[e.key] = false;
+    if (e.key === 'r' || e.key === 'R') {
+        const p1 = getInputState('p1');
+        if (p1) p1.useItem = false;
+    }
+    if (e.key === 'x' || e.key === 'X') {
+        const p1 = getInputState('p1');
+        if (p1) p1.eject = false;
+    }
 });

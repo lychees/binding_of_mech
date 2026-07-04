@@ -13,7 +13,7 @@ import { GridInventory, InventoryItem, ITEM_RARITY } from './inventory.js?v=2';
 import { PILOT_TEMPLATES, getPilotDisplayInfo, createPilot, getRecruitCost, pilotExpToNext, addPilotExp, calculatePilotStats } from './pilots.js?v=2';
 import { ENEMY_MECH_TEMPLATES, getAllEnemyMechTemplates, getEnemyMechUnlockProgress, checkEnemyMechUnlock, buyEnemyMech, createPlayerMechFromTemplate, getEnemyMechTemplate } from './enemyMechs.js?v=2';
 import { MECH_BLUEPRINTS, getAllMechBlueprints, isMechBlueprintUnlocked, unlockMechBlueprint, buyMechFromBlueprint, createMechFromBlueprint } from './mechBlueprints.js?v=2';
-import Mech from './classes/Mech.js?v=2';
+import { CardList, Card, StatPanel, TabBar, BlueprintViewer } from './ui/components.js?v=2';
 
 let playerSave = loadSave();
 let selectedAssemblySlot = null;
@@ -588,81 +588,20 @@ function renderAssemblyPanel() {
     const maxWeight = Math.max(50, build.maxEnergy * 0.8);
     const isOverweight = build.totalWeight > maxWeight;
 
-    panel.innerHTML = `
-        <div class="assembly-blueprint">
-            <h3>MECH BLUEPRINT</h3>
-            <div class="mech-schematic" id="mechSchematic">
-                <svg class="mech-svg" viewBox="0 0 320 360" preserveAspectRatio="xMidYMid meet">
-                    <!-- grid lines -->
-                    <defs>
-                        <pattern id="bpGrid" width="20" height="20" patternUnits="userSpaceOnUse">
-                            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(76,175,80,0.15)" stroke-width="1"/>
-                        </pattern>
-                    </defs>
-                    <rect width="320" height="360" fill="url(#bpGrid)" />
-                    <!-- center crosshair -->
-                    <line x1="160" y1="40" x2="160" y2="320" stroke="rgba(76,175,80,0.4)" stroke-dasharray="4 2" />
-                    <line x1="60" y1="180" x2="260" y2="180" stroke="rgba(76,175,80,0.4)" stroke-dasharray="4 2" />
-                    <!-- mech chassis outline -->
-                    <g stroke="#ffeb3b" stroke-width="1.5" fill="none" opacity="0.85">
-                        <!-- head -->
-                        <rect x="145" y="55" width="30" height="28" rx="4" />
-                        <!-- upper torso -->
-                        <rect x="125" y="85" width="70" height="55" rx="6" />
-                        <!-- core detail -->
-                        <circle cx="160" cy="112" r="14" />
-                        <line x1="160" y1="98" x2="160" y2="126" />
-                        <line x1="146" y1="112" x2="174" y2="112" />
-                        <!-- lower torso -->
-                        <polygon points="130,142 190,142 180,180 140,180" />
-                        <!-- left arm -->
-                        <rect x="70" y="95" width="50" height="18" rx="3" />
-                        <rect x="55" y="98" width="20" height="12" rx="2" />
-                        <!-- right arm -->
-                        <rect x="200" y="95" width="50" height="18" rx="3" />
-                        <rect x="245" y="98" width="20" height="12" rx="2" />
-                        <!-- left leg -->
-                        <rect x="135" y="185" width="22" height="65" rx="3" />
-                        <rect x="132" y="252" width="28" height="18" rx="2" />
-                        <!-- right leg -->
-                        <rect x="203" y="185" width="22" height="65" rx="3" />
-                        <rect x="200" y="252" width="28" height="18" rx="2" />
-                        <!-- left weapon mount -->
-                        <line x1="90" y1="112" x2="90" y2="140" />
-                        <rect x="82" y="140" width="16" height="45" rx="2" fill="#c8b900" fill-opacity="0.2" />
-                        <!-- right weapon mount -->
-                        <line x1="230" y1="112" x2="230" y2="140" />
-                        <rect x="222" y="140" width="16" height="45" rx="2" fill="#c8b900" fill-opacity="0.2" />
-                    </g>
-                    <!-- dimension lines -->
-                    <g stroke="rgba(76,175,80,0.6)" stroke-width="1" fill="#4caf50" font-size="9" font-family="monospace">
-                        <line x1="50" y1="35" x2="270" y2="35" />
-                        <line x1="50" y1="32" x2="50" y2="38" />
-                        <line x1="270" y1="32" x2="270" y2="38" />
-                        <text x="160" y="30" text-anchor="middle">WIDTH 8.4m</text>
-
-                        <line x1="40" y1="50" x2="40" y2="310" />
-                        <line x1="37" y1="50" x2="43" y2="50" />
-                        <line x1="37" y1="310" x2="43" y2="310" />
-                        <text x="30" y="185" text-anchor="middle" transform="rotate(-90 30 185)">HEIGHT 12.6m</text>
-                    </g>
-                </svg>
-                <div id="mechSlots"></div>
-            </div>
-            <div class="mech-stats">
-                <h4>// SPECIFICATIONS</h4>
-                ${renderStatRow('HP', Math.floor(build.maxHealth))}
-                ${renderStatRow('EN', Math.floor(build.maxEnergy))}
-                ${renderStatRow('ARMOR', Math.floor(build.armor * 100) + '%')}
-                ${renderStatRow('SPEED', build.maxSpeed.toFixed(2))}
-                ${renderStatRow('DASH CD', build.dashCooldown)}
-                ${renderStatRow('DAMAGE', Math.floor(build.damageBonus * 100) + '%')}
-                ${renderStatRow('RELOAD', Math.floor((build.reloadSpeed - 1) * 100) + '%')}
-                ${renderStatRow('WEIGHT', build.totalWeight.toFixed(1) + ' / ' + Math.floor(maxWeight))}
-                ${renderStatRow('SHIELD', Math.floor(build.shield))}
-                ${renderStatRow('REPAIR', build.repairRate.toFixed(1) + '/s')}
-                <div id="overweightWarning" class="overweight" style="display:${isOverweight ? 'block' : 'none'}">WARNING: OVERWEIGHT DETECTED</div>
-            </div>
+    panel.innerHTML = BlueprintViewer({ mechBuild: playerSave.mechBuild }) + `
+        <div class="mech-stats">
+            <h4>// SPECIFICATIONS</h4>
+            ${renderStatRow('HP', Math.floor(build.maxHealth))}
+            ${renderStatRow('EN', Math.floor(build.maxEnergy))}
+            ${renderStatRow('ARMOR', Math.floor(build.armor * 100) + '%')}
+            ${renderStatRow('SPEED', build.maxSpeed.toFixed(2))}
+            ${renderStatRow('DASH CD', build.dashCooldown)}
+            ${renderStatRow('DAMAGE', Math.floor(build.damageBonus * 100) + '%')}
+            ${renderStatRow('RELOAD', Math.floor((build.reloadSpeed - 1) * 100) + '%')}
+            ${renderStatRow('WEIGHT', build.totalWeight.toFixed(1) + ' / ' + Math.floor(maxWeight))}
+            ${renderStatRow('SHIELD', Math.floor(build.shield))}
+            ${renderStatRow('REPAIR', build.repairRate.toFixed(1) + '/s')}
+            <div id="overweightWarning" class="overweight" style="display:${isOverweight ? 'block' : 'none'}">WARNING: OVERWEIGHT DETECTED</div>
         </div>
         <div class="assembly-parts">
             <h3>PARTS WAREHOUSE</h3>
@@ -1218,15 +1157,17 @@ function renderCodexItems(content) {
     for (const type of order) {
         if (!byType[type]) continue;
         html += `<h4 style="color:#aaa; margin:20px 0 10px;">${typeNames[type] || type} (${byType[type].length})</h4>`;
-        html += '<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px;">' +
-            byType[type].map(def => `
-            <div class="upgrade-item" style="border-color:${ITEM_RARITY[def.rarity]?.color || '#888'}">
-                <h4 style="color:${ITEM_RARITY[def.rarity]?.color || '#fff'}">${def.icon} ${def.name}</h4>
-                <div class="level">${ITEM_RARITY[def.rarity]?.name || def.rarity}</div>
-                <div style="color:#aaa; font-size:12px; margin:6px 0;">${def.description}</div>
-                <div style="color:#888; font-size:11px;">${def.width}×${def.height} 最大堆叠 ${def.maxStack} 重量 ${def.weight}kg</div>
-            </div>
-        `).join('') + '</div>';
+        html += CardList({
+            items: byType[type],
+            renderItem: def => Card({
+                title: `${def.icon} ${def.name}`,
+                subtitle: ITEM_RARITY[def.rarity]?.name || def.rarity,
+                color: ITEM_RARITY[def.rarity]?.color || '#fff',
+                borderColor: ITEM_RARITY[def.rarity]?.color || '#888',
+                content: def.description,
+                footer: `${def.width}×${def.height} 最大堆叠 ${def.maxStack} 重量 ${def.weight}kg`
+            })
+        });
     }
     content.innerHTML = html;
 }
@@ -1237,15 +1178,17 @@ function renderCodexWeapons(content) {
         content.innerHTML = '<div style="color:#888;">数据加载中...</div>';
         return;
     }
-    content.innerHTML = '<h3 style="color:#00d4ff;">武器</h3><div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px;">' +
-        Object.entries(WEAPONS).map(([key, w]) => `
-            <div class="upgrade-item" style="border-color:${w.color}">
-                <h4 style="color:${w.color}">${w.name}</h4>
-                <div style="color:#aaa; font-size:12px; margin:6px 0;">伤害 ${Math.floor(w.damage)} | 射速 ${w.fireRate} | 射程 ${w.bulletLife}</div>
-                <div style="color:#888; font-size:11px;">弹速 ${w.bulletSpeed} | 散布 ${w.spread.toFixed(2)} | 后坐 ${w.recoil}</div>
-                <div style="color:#888; font-size:11px; margin-top:4px;">${w.homing ? '追踪' : ''} ${w.heatPerShot ? '过热' : ''} ${w.swingRange ? '近战' : ''}</div>
-            </div>
-        `).join('') + '</div>';
+    content.innerHTML = '<h3 style="color:#00d4ff;">武器</h3>' + CardList({
+        items: Object.entries(WEAPONS),
+        renderItem: ([key, w]) => Card({
+            title: w.name,
+            subtitle: `伤害 ${Math.floor(w.damage)} | 射速 ${w.fireRate} | 射程 ${w.bulletLife}`,
+            color: w.color,
+            borderColor: w.color,
+            content: `弹速 ${w.bulletSpeed} | 散布 ${w.spread.toFixed(2)} | 后坐 ${w.recoil}`,
+            footer: `${w.homing ? '追踪 ' : ''}${w.heatPerShot ? '过热 ' : ''}${w.swingRange ? '近战' : ''}`
+        })
+    });
 }
 
 function renderCodexModules(content) {
@@ -1253,18 +1196,21 @@ function renderCodexModules(content) {
         content.innerHTML = '<div style="color:#888;">数据加载中...</div>';
         return;
     }
-    content.innerHTML = '<h3 style="color:#00d4ff;">模块</h3><div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px;">' +
-        Object.values(ALL_MODULES).map(m => {
+    content.innerHTML = '<h3 style="color:#00d4ff;">模块</h3>' + CardList({
+        items: Object.values(ALL_MODULES),
+        renderItem: m => {
             const rarity = MODULE_RARITY[m.rarity];
             const stats = Object.entries(m.stats).map(([k, v]) => `${k}: ${v}`).join(' | ');
-            return `
-            <div class="upgrade-item" style="border-color:${rarity.color}">
-                <h4 style="color:${rarity.color}">${m.name}</h4>
-                <div class="level">${rarity.name} · ${m.slot}</div>
-                <div style="color:#aaa; font-size:12px; margin:6px 0;">${m.description}</div>
-                <div style="color:#888; font-size:11px;">${stats}</div>
-            </div>
-        `}).join('') + '</div>';
+            return Card({
+                title: m.name,
+                subtitle: `${rarity.name} · ${m.slot}`,
+                color: rarity.color,
+                borderColor: rarity.color,
+                content: m.description,
+                footer: stats
+            });
+        }
+    });
 }
 
 function renderCodexMechs(content) {
@@ -1272,22 +1218,25 @@ function renderCodexMechs(content) {
         content.innerHTML = '<div style="color:#888;">数据加载中...</div>';
         return;
     }
-    content.innerHTML = '<h3 style="color:#00d4ff;">机甲</h3><div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px;">' +
-        Object.values(MECH_BLUEPRINTS).map(bp => {
+    content.innerHTML = '<h3 style="color:#00d4ff;">机甲</h3>' + CardList({
+        items: Object.values(MECH_BLUEPRINTS),
+        renderItem: bp => {
             const tier = MECH_BLUEPRINT_TIERS[bp.tier];
             const weapons = Object.values(bp.mechBuild)
                 .filter(s => s.moduleId.startsWith('W_'))
                 .map(s => ALL_MODULES[s.moduleId]?.name || s.moduleId)
                 .join(' / ');
-            return `
-            <div class="upgrade-item" style="border-color:${tier.color}; cursor:pointer;" onclick="showMechDetail('${bp.id}')">
-                <h4 style="color:${bp.color}">${bp.name}</h4>
-                <div class="level">${tier.name}${bp.starting ? ' · 初始机体' : ''}</div>
-                <div style="color:#aaa; font-size:12px; margin:6px 0;">${bp.description}</div>
-                <div style="color:#888; font-size:11px;">装备: ${weapons}</div>
-                ${!bp.starting ? `<div style="color:#ffaa44; font-size:11px; margin-top:4px;">解锁: ${bp.cost} 金币</div>` : ''}
-            </div>
-        `}).join('') + '</div>';
+            return Card({
+                title: bp.name,
+                subtitle: `${tier.name}${bp.starting ? ' · 初始机体' : ''}`,
+                color: bp.color,
+                borderColor: tier.color,
+                content: bp.description,
+                footer: `装备: ${weapons}${!bp.starting ? ` | 解锁: ${bp.cost} 金币` : ''}`,
+                onClick: `showMechDetail('${bp.id}')`
+            });
+        }
+    });
 }
 
 window.showMechDetail = function(blueprintId) {
@@ -1399,12 +1348,14 @@ function renderCodexEnemies(content) {
         content.innerHTML = '<div style="color:#888;">数据加载中...</div>';
         return;
     }
-    content.innerHTML = '<h3 style="color:#00d4ff;">敌人</h3><div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px;">' +
-        Object.entries(ENEMY_TEMPLATES).map(([key, e]) => `
-            <div class="upgrade-item" style="border-color:${e.color}">
-                <h4 style="color:${e.color}">${e.name}</h4>
-                <div style="color:#aaa; font-size:12px; margin:6px 0;">生命 ${e.health} | 速度 ${e.speed} | 武器 ${e.weapon}</div>
-                <div style="color:#888; font-size:11px;">赏金 $${e.money} · 经验 ${e.exp}</div>
-            </div>
-        `).join('') + '</div>';
+    content.innerHTML = '<h3 style="color:#00d4ff;">敌人</h3>' + CardList({
+        items: Object.entries(ENEMY_TEMPLATES),
+        renderItem: ([key, e]) => Card({
+            title: e.name,
+            subtitle: `生命 ${e.health} | 速度 ${e.speed} | 武器 ${e.weapon}`,
+            color: e.color,
+            borderColor: e.color,
+            footer: `赏金 $${e.money} · 经验 ${e.exp}`
+        })
+    });
 }

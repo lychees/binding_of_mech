@@ -27,3 +27,6 @@ export function setCamera(x, y) {
     cameraX = x;
     cameraY = y;
 }
+
+// 兼容旧代码：全局数组仍然保留，但新代码应优先使用 js/engine/WorldState.js
+export { world } from './engine/WorldState.js?v=2';

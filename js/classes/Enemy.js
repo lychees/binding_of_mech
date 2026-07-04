@@ -131,24 +131,6 @@ class Enemy extends Entity {
         this.velocityY = -Math.cos(this.angle) * this.speed;
 
         this.updateStatusEffects();
-
-        // 障碍物碰撞检测
-        for (const obs of obstacles) {
-            if (this.x + this.size > obs.x && this.x - this.size < obs.x + obs.width &&
-                this.y + this.size > obs.y && this.y - this.size < obs.y + obs.height) {
-                const centerX = obs.x + obs.width / 2;
-                const centerY = obs.y + obs.height / 2;
-                const dx = this.x - centerX;
-                const dy = this.y - centerY;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist > 0) {
-                    this.x += (dx / dist) * 3;
-                    this.y += (dy / dist) * 3;
-                }
-                this.angle += Math.PI / 2;
-            }
-        }
-
         this.boundPosition(this.size, this.size, WORLD_WIDTH - this.size, WORLD_HEIGHT - this.size);
 
         if (this.shootCooldown > 0) this.shootCooldown--;
