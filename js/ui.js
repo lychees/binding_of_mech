@@ -33,7 +33,7 @@ export function getWeaponEditorData() { return weaponEditorData; }
 // ========== 页面切换 ==========
 export function initUI() {
     window.showMainMenu = () => {
-        ['mainMenu', 'levelSelect', 'hangar', 'weaponEditor', 'enemyEditorPage', 'levelEditorPage', 'lobbyPage', 'gameContainer', 'inventoryPage'].forEach(id => {
+        ['mainMenu', 'levelSelect', 'hangar', 'weaponEditor', 'enemyEditorPage', 'levelEditorPage', 'lobbyPage', 'gameContainer', 'inventoryPage', 'codexPage'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = id === 'mainMenu' ? 'flex' : 'none';
         });
@@ -139,6 +139,12 @@ export function initUI() {
         document.getElementById('mainMenu').style.display = 'none';
         document.getElementById('levelEditorPage').style.display = 'flex';
         renderLevelEditorPage();
+    };
+
+    window.showCodex = () => {
+        document.getElementById('mainMenu').style.display = 'none';
+        document.getElementById('codexPage').style.display = 'flex';
+        renderCodex();
     };
 
     window.returnToMenu = window.showMainMenu;
@@ -1158,3 +1164,117 @@ window.buyEnemyMechForPlayer = async function(templateId) {
         alert(result.reason);
     }
 };
+
+let codexTab = 'items';
+
+function renderCodex() {
+    const content = document.getElementById('codexContent');
+    if (!content) return;
+    document.querySelectorAll('[id^="codexTab-"]').forEach(el => el.classList.remove('active'));
+    const activeTab = document.getElementById('codexTab-' + codexTab);
+    if (activeTab) activeTab.classList.add('active');
+
+    switch (codexTab) {
+        case 'items': renderCodexItems(content); break;
+        case 'weapons': renderCodexWeapons(content); break;
+        case 'modules': renderCodexModules(content); break;
+        case 'mechs': renderCodexMechs(content); break;
+        case 'enemies': renderCodexEnemies(content); break;
+    }
+}
+
+window.switchCodexTab = function(tab) {
+    codexTab = tab;
+    renderCodex();
+};
+
+function renderCodexItems(content) {
+    const { ITEM_DEFS, ITEM_RARITY } = window;
+    if (!ITEM_DEFS) {
+        content.innerHTML = '<div style="color:#888;">数据加载中...</div>';
+        return;
+    }
+    content.innerHTML = '<h3 style="color:#00d4ff;">道具</h3><div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px;">' +
+        Object.values(ITEM_DEFS).map(def => `
+            <div class="upgrade-item" style="border-color:${ITEM_RARITY[def.rarity]?.color || '#888'}">
+                <h4 style="color:${ITEM_RARITY[def.rarity]?.color || '#fff'}">${def.icon} ${def.name}</h4>
+                <div class="level">${ITEM_RARITY[def.rarity]?.name || def.rarity}</div>
+                <div style="color:#aaa; font-size:12px; margin:6px 0;">${def.description}</div>
+                <div style="color:#888; font-size:11px;">${def.width}×${def.height} 最大堆叠 ${def.maxStack} 重量 ${def.weight}kg</div>
+            </div>
+        `).join('') + '</div>';
+}
+
+function renderCodexWeapons(content) {
+    const { WEAPONS } = window;
+    if (!WEAPONS) {
+        content.innerHTML = '<div style="color:#888;">数据加载中...</div>';
+        return;
+    }
+    content.innerHTML = '<h3 style="color:#00d4ff;">武器</h3><div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px;">' +
+        Object.entries(WEAPONS).map(([key, w]) => `
+            <div class="upgrade-item" style="border-color:${w.color}">
+                <h4 style="color:${w.color}">${w.name}</h4>
+                <div style="color:#aaa; font-size:12px; margin:6px 0;">伤害 ${Math.floor(w.damage)} | 射速 ${w.fireRate} | 射程 ${w.bulletLife}</div>
+                <div style="color:#888; font-size:11px;">弹速 ${w.bulletSpeed} | 散布 ${w.spread.toFixed(2)} | 后坐 ${w.recoil}</div>
+                <div style="color:#888; font-size:11px; margin-top:4px;">${w.homing ? '追踪' : ''} ${w.heatPerShot ? '过热' : ''} ${w.swingRange ? '近战' : ''}</div>
+            </div>
+        `).join('') + '</div>';
+}
+
+function renderCodexModules(content) {
+    if (!ALL_MODULES) {
+        content.innerHTML = '<div style="color:#888;">数据加载中...</div>';
+        return;
+    }
+    content.innerHTML = '<h3 style="color:#00d4ff;">模块</h3><div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px;">' +
+        Object.values(ALL_MODULES).map(m => {
+            const rarity = MODULE_RARITY[m.rarity];
+            const stats = Object.entries(m.stats).map(([k, v]) => `${k}: ${v}`).join(' | ');
+            return `
+            <div class="upgrade-item" style="border-color:${rarity.color}">
+                <h4 style="color:${rarity.color}">${m.name}</h4>
+                <div class="level">${rarity.name} · ${m.slot}</div>
+                <div style="color:#aaa; font-size:12px; margin:6px 0;">${m.description}</div>
+                <div style="color:#888; font-size:11px;">${stats}</div>
+            </div>
+        `}).join('') + '</div>';
+}
+
+function renderCodexMechs(content) {
+    if (!MECH_BLUEPRINTS) {
+        content.innerHTML = '<div style="color:#888;">数据加载中...</div>';
+        return;
+    }
+    content.innerHTML = '<h3 style="color:#00d4ff;">机甲</h3><div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px;">' +
+        Object.values(MECH_BLUEPRINTS).map(bp => {
+            const tier = MECH_BLUEPRINT_TIERS[bp.tier];
+            const weapons = Object.values(bp.mechBuild)
+                .filter(s => s.moduleId.startsWith('W_'))
+                .map(s => ALL_MODULES[s.moduleId]?.name || s.moduleId)
+                .join(' / ');
+            return `
+            <div class="upgrade-item" style="border-color:${tier.color}">
+                <h4 style="color:${bp.color}">${bp.name}</h4>
+                <div class="level">${tier.name}${bp.starting ? ' · 初始机体' : ''}</div>
+                <div style="color:#aaa; font-size:12px; margin:6px 0;">${bp.description}</div>
+                <div style="color:#888; font-size:11px;">装备: ${weapons}</div>
+                ${!bp.starting ? `<div style="color:#ffaa44; font-size:11px; margin-top:4px;">解锁: ${bp.cost} 金币</div>` : ''}
+            </div>
+        `}).join('') + '</div>';
+}
+
+function renderCodexEnemies(content) {
+    if (!ENEMY_TEMPLATES) {
+        content.innerHTML = '<div style="color:#888;">数据加载中...</div>';
+        return;
+    }
+    content.innerHTML = '<h3 style="color:#00d4ff;">敌人</h3><div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px;">' +
+        Object.entries(ENEMY_TEMPLATES).map(([key, e]) => `
+            <div class="upgrade-item" style="border-color:${e.color}">
+                <h4 style="color:${e.color}">${e.name}</h4>
+                <div style="color:#aaa; font-size:12px; margin:6px 0;">生命 ${e.health} | 速度 ${e.speed} | 武器 ${e.weapon}</div>
+                <div style="color:#888; font-size:11px;">赏金 $${e.money} · 经验 ${e.exp}</div>
+            </div>
+        `).join('') + '</div>';
+}

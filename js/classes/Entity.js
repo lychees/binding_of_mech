@@ -1,7 +1,7 @@
 // 实体基类：共享位置、速度、着火、冒烟、碰撞等逻辑
 import { particles } from '../config.js?v=2';
 import { clamp, normalize } from '../utils.js?v=2';
-import { createFlame, createSmoke } from './Particle.js?v=2';
+import { createFlame, createSmoke, createSpark } from './Particle.js?v=2';
 
 export default class Entity {
     constructor(x, y) {
@@ -47,11 +47,7 @@ export default class Entity {
             this.burnDamageTimer--;
             if (this.burnDamageTimer <= 0) {
                 this.burnDamageTimer = 30;
-                this.health -= 2;
-                if (this.health <= 0) {
-                    this.health = 0;
-                    this.isDead = true;
-                }
+                this.takeHit(2);
             }
             if (this.burnTimer <= 0) this.isBurning = false;
             if (Math.random() < 0.4) {
@@ -109,14 +105,19 @@ export default class Entity {
         }
 
         const relativeSpeed = Math.abs(velAlongNormal);
-        const damage = relativeSpeed * this.collisionDamageMultiplier;
+        const combinedMultiplier = (this.collisionDamageMultiplier || 0.6) + (other.collisionDamageMultiplier || 0.6);
+        const damage = relativeSpeed * combinedMultiplier * 0.5;
         if (damage >= 1) {
-            this.takeHit(damage * 0.5);
-            if (other.takeHit) other.takeHit(damage * 0.5);
+            this.takeHit(damage);
+            if (other.takeHit) other.takeHit(damage);
             this.lastCollisionTime = this.collisionCooldown;
             if (other.lastCollisionTime !== undefined) {
                 other.lastCollisionTime = other.collisionCooldown || 15;
             }
+
+            const sparkX = this.x + nx * this.collisionRadius;
+            const sparkY = this.y + ny * this.collisionRadius;
+            particles.push(...createSpark(sparkX, sparkY, '#ffcc00', Math.min(12, Math.floor(damage)), Math.min(8, 2 + damage * 0.5)));
         }
     }
 

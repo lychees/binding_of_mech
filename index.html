@@ -18,6 +18,7 @@
         <button class="menu-btn" onclick="showWeaponEditor()">武器工坊</button>
         <button class="menu-btn" onclick="showEnemyEditor()">杂兵编辑器</button>
         <button class="menu-btn" onclick="showLevelEditor()">关卡编辑器</button>
+        <button class="menu-btn" onclick="showCodex()">图鉴</button>
     </div>
 
     <!-- 关卡编辑器 -->
@@ -103,6 +104,20 @@
             <button class="btn-secondary" onclick="importWeaponConfig()">导入配置</button>
             <input type="file" id="weaponImportFile" accept=".json" style="display:none" onchange="handleWeaponImport(event)">
         </div>
+    </div>
+
+    <!-- 图鉴 -->
+    <div id="codexPage" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:#0a0a0a; z-index:200; flex-direction:column; align-items:center; padding-top:40px;">
+        <button class="back-btn" onclick="showMainMenu()">返回</button>
+        <h2 style="color:#00d4ff; font-size:32px; margin-bottom:10px;">图鉴</h2>
+        <div class="hangar-tabs" style="margin-bottom:15px;">
+            <div class="hangar-tab active" onclick="switchCodexTab('items')" id="codexTab-items">道具</div>
+            <div class="hangar-tab" onclick="switchCodexTab('weapons')" id="codexTab-weapons">武器</div>
+            <div class="hangar-tab" onclick="switchCodexTab('modules')" id="codexTab-modules">模块</div>
+            <div class="hangar-tab" onclick="switchCodexTab('mechs')" id="codexTab-mechs">机甲</div>
+            <div class="hangar-tab" onclick="switchCodexTab('enemies')" id="codexTab-enemies">敌人</div>
+        </div>
+        <div id="codexContent" style="width:900px; max-height:70vh; overflow-y:auto; padding-bottom:40px;"></div>
     </div>
 
     <!-- 游戏画面 -->
