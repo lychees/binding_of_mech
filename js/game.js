@@ -1006,10 +1006,10 @@ function drawEvacuationProgress(x, y) {
 function evacuateMission() {
     gameRunning = false;
     showEvacuationPrompt(false);
+    if (evacuationPoint) evacuationPoint.active = false;
     showMissionResult(true);
     const resultTitle = document.getElementById('resultTitle');
     if (resultTitle) resultTitle.textContent = '撤离成功';
-    if (evacuationPoint) evacuationPoint.active = false;
 }
 
 function showEvacuationPrompt(show) {
@@ -1073,7 +1073,11 @@ function drawMinimap() {
 }
 
 function showMissionResult(won) {
-    const playerSave = _currentPlayerSave || getPlayerSave();
+    const playerSave = getPlayerSave();
+    if (!playerSave) {
+        console.error('showMissionResult: playerSave is undefined');
+        return;
+    }
     const blueprintDrops = won ? rollBlueprintDrops(currentLevel ? currentLevel.id : 1) : [];
     const result = document.getElementById('missionResult');
     document.getElementById('resultTitle').textContent = won ? '任务完成' : '任务失败';
@@ -1091,7 +1095,7 @@ function showMissionResult(won) {
     result.style.display = 'block';
 
     if (won) {
-        setPlayerSave(addMoneyExp(playerSave, missionMoney, missionExp, missionMaterials));
+        addMoneyExp(playerSave, missionMoney, missionExp, missionMaterials);
         if (currentLevel && !playerSave.levelsCompleted.includes(currentLevel.id)) {
             playerSave.levelsCompleted.push(currentLevel.id);
             playerSave.highestLevel = Math.max(playerSave.highestLevel, currentLevel.id);
