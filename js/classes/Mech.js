@@ -547,11 +547,13 @@ class Mech {
                 for (let i = 0; i < 4; i++) {
                     ctx.fillRect(-w.barrelWidth/2 - 2, -w.barrelLength + 5 + i * 5, w.barrelWidth + 4, 2);
                 }
-                // 温度指示
+                // 温度指示条
                 if (this.heatLevel > 0) {
                     const heatRatio = this.heatLevel / w.overheatThreshold;
-                    ctx.fillStyle = 'rgba(255, ' + (255 - heatRatio * 255) + ', 0, 0.5)';
-                    ctx.fillRect(-w.barrelWidth/2 - 3, -w.barrelLength, 2, w.barrelLength * heatRatio);
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(-w.barrelWidth/2 - 8, -w.barrelLength, 5, w.barrelLength);
+                    ctx.fillStyle = 'rgba(255, ' + Math.floor(255 - heatRatio * 255) + ', 0, 0.9)';
+                    ctx.fillRect(-w.barrelWidth/2 - 8, -w.barrelLength + w.barrelLength * (1 - heatRatio), 5, w.barrelLength * heatRatio);
                 }
                 break;
                 
