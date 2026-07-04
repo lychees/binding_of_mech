@@ -1,4 +1,6 @@
 import { GridInventory, createDefaultMechInventory, createDefaultPilotInventory } from '../js/inventory.js';
+import { createPilot } from '../js/pilots.js';
+import { createDefaultPlayerMech } from '../js/enemyMechs.js';
 
 // 存档系统
 const SAVE_KEY = 'mech_game_save';
@@ -49,6 +51,26 @@ export function migrateSave(data) {
     }
     if (!data.pilotInventory) {
         data.pilotInventory = createDefaultPilotInventory().toJSON();
+    }
+    if (!data.enemyKillRecord) {
+        data.enemyKillRecord = {};
+    }
+    if (!data.enemyMechsUnlocked) {
+        data.enemyMechsUnlocked = [];
+    }
+    if (!data.pilots) {
+        data.pilots = [createPilot('rookie', '阿尔法')];
+    }
+    if (!data.activePilotId) {
+        data.activePilotId = data.pilots[0].id;
+    }
+    if (!data.mechs) {
+        const defaultMech = createDefaultPlayerMech();
+        data.mechs = [defaultMech];
+        data.activeMechId = defaultMech.id;
+    }
+    if (!data.activeMechId && data.mechs.length > 0) {
+        data.activeMechId = data.mechs[0].id;
     }
     if (!data.researchedModules) {
         data.researchedModules = ['C_STANDARD', 'H_STANDARD', 'A_STANDARD', 'L_STANDARD', 'CO_STANDARD', 'W_VULCAN', 'W_SHOTGUN', 'W_CANNON', 'W_LASER', 'W_BEAM_SWORD'];
@@ -115,16 +137,24 @@ export function createDefaultPartsInventory() {
 }
 
 export function createDefaultSave() {
+    const defaultMech = createDefaultPlayerMech();
+    const defaultPilot = createPilot('rookie', '阿尔法');
     return {
         money: 1000,
         exp: 0,
         level: 1,
         expToNext: 100,
         materials: 0,
-        mechBuild: createDefaultMechBuild(),
+        mechBuild: defaultMech.mechBuild,
         partsInventory: createDefaultPartsInventory(),
         mechInventory: createDefaultMechInventory().toJSON(),
         pilotInventory: createDefaultPilotInventory().toJSON(),
+        pilots: [defaultPilot],
+        activePilotId: defaultPilot.id,
+        mechs: [defaultMech],
+        activeMechId: defaultMech.id,
+        enemyKillRecord: {},
+        enemyMechsUnlocked: [],
         researchedModules: ['C_STANDARD', 'H_STANDARD', 'A_STANDARD', 'L_STANDARD', 'CO_STANDARD', 'W_VULCAN', 'W_SHOTGUN', 'W_CANNON', 'W_LASER', 'W_BEAM_SWORD'],
         blueprints: [],
         // 保留旧版字段用于兼容

@@ -653,3 +653,8 @@ body {
     background: rgba(0, 212, 255, 0.2);
     color: #00d4ff;
 }
+
+.active-card {
+    border-color: #00d4ff !important;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+}

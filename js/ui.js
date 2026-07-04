@@ -10,6 +10,8 @@ import NetworkManager from './net/NetworkManager.js';
 import { initOnlineGame, setNetworkManager, resetOnlineGame, handleNetworkMessage, isOnlineGame, isOnlineHost, getNetworkPing } from './net/OnlineGame.js';
 
 import { GridInventory, InventoryItem, ITEM_RARITY } from './inventory.js';
+import { PILOT_TEMPLATES, getPilotDisplayInfo, createPilot, getRecruitCost, pilotExpToNext, addPilotExp, calculatePilotStats } from './pilots.js';
+import { ENEMY_MECH_TEMPLATES, getAllEnemyMechTemplates, getEnemyMechUnlockProgress, checkEnemyMechUnlock, buyEnemyMech, createPlayerMechFromTemplate, getEnemyMechTemplate } from './enemyMechs.js';
 
 let playerSave = loadSave();
 let selectedAssemblySlot = null;
@@ -21,6 +23,7 @@ let inventoryTab = 'mech';
 let draggedItem = null;
 let inventoryTooltip = null;
 let inventoryContextMenu = null;
+let hangarTab = 'mech';
 
 export function getPlayerSave() { return playerSave; }
 export function setPlayerSave(s) { playerSave = s; }
@@ -431,23 +434,24 @@ function renderLevelGrid(multiplayer = false) {
 
 // ========== 格纳库 ==========
 window.switchHangarTab = function(tab) {
+    hangarTab = tab;
     document.querySelectorAll('.hangar-tab').forEach(t => t.classList.remove('active'));
     event.target.classList.add('active');
     if (tab === 'assembly') renderAssemblyPanel();
+    else if (tab === 'pilots') renderPilotsPanel();
+    else if (tab === 'mechs') renderMechsPanel();
+    else if (tab === 'enemyMechs') renderEnemyMechsPanel();
     else renderUpgradePanel(tab);
 };
 
 function updateHangarUI() {
     document.getElementById('resourceBar').textContent =
         `金币: ${playerSave.money} | 经验: ${playerSave.exp} | 材料: ${playerSave.materials} | 等级: ${playerSave.level}`;
-    const activeTab = document.querySelector('.hangar-tab.active');
-    let tab = 'mech';
-    if (activeTab) {
-        if (activeTab.textContent === '武器升级') tab = 'weapon';
-        else if (activeTab.textContent === '机甲组装') tab = 'assembly';
-    }
-    if (tab === 'assembly') renderAssemblyPanel();
-    else renderUpgradePanel(tab);
+    if (hangarTab === 'assembly') renderAssemblyPanel();
+    else if (hangarTab === 'pilots') renderPilotsPanel();
+    else if (hangarTab === 'mechs') renderMechsPanel();
+    else if (hangarTab === 'enemyMechs') renderEnemyMechsPanel();
+    else renderUpgradePanel(hangarTab);
 }
 
 function renderUpgradePanel(tab) {
@@ -766,6 +770,14 @@ window.equipModule = function(moduleId) {
     inv[moduleId].count--;
     if (inv[moduleId].count <= 0) delete inv[moduleId];
 
+    // 如果正在编辑某台机甲，同步回去
+    if (window.editingMechId) {
+        const idx = playerSave.mechs.findIndex(m => m.id === window.editingMechId);
+        if (idx >= 0) {
+            playerSave.mechs[idx].mechBuild = JSON.parse(JSON.stringify(playerSave.mechBuild));
+        }
+    }
+
     saveGame(playerSave);
     renderAssemblyPanel();
 };
@@ -832,4 +844,195 @@ window.salvagePart = function(moduleId) {
     if (inv[moduleId].count <= 0) delete inv[moduleId];
     saveGame(playerSave);
     renderAssemblyPanel();
+};
+
+// ========== 驾驶员管理 ==========
+function renderPilotsPanel() {
+    const panel = document.getElementById('upgradePanel');
+    panel.innerHTML = '';
+    panel.className = 'upgrade-panel';
+
+    const activePilot = playerSave.pilots.find(p => p.id === playerSave.activePilotId);
+
+    panel.innerHTML += `<h3 style="color:#00d4ff; width:100%;">出战驾驶员</h3>`;
+    if (activePilot) {
+        panel.innerHTML += renderPilotCard(activePilot, true);
+    }
+
+    panel.innerHTML += `<h3 style="color:#00d4ff; width:100%;">所有驾驶员</h3>`;
+    for (const pilot of playerSave.pilots) {
+        if (pilot.id === playerSave.activePilotId) continue;
+        panel.innerHTML += renderPilotCard(pilot, false);
+    }
+
+    panel.innerHTML += `<h3 style="color:#00d4ff; width:100%;">招募新驾驶员</h3>`;
+    for (const templateId in PILOT_TEMPLATES) {
+        const template = PILOT_TEMPLATES[templateId];
+        const cost = getRecruitCost(templateId);
+        const canAfford = playerSave.money >= cost;
+        panel.innerHTML += `
+            <div class="upgrade-item">
+                <h4 style="color:${template.color}">${template.icon} ${template.name}</h4>
+                <div class="level">${template.description}</div>
+                <div class="cost">招募花费: ${cost} 金币</div>
+                <button ${canAfford ? '' : 'disabled'} onclick="recruitPilot('${templateId}')">招募</button>
+            </div>`;
+    }
+}
+
+function renderPilotCard(pilot, isActive) {
+    const info = getPilotDisplayInfo(pilot);
+    const stats = info.stats;
+    const expRatio = pilot.exp / pilot.expToNext;
+    return `
+        <div class="upgrade-item ${isActive ? 'active-card' : ''}" style="border-color:${isActive ? '#00d4ff' : '#333'}">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="font-size:32px;">${info.icon}</div>
+                <div>
+                    <h4 style="color:${info.color}; margin:0;">${info.name} [Lv.${pilot.level}]</h4>
+                    <div style="color:#888; font-size:12px;">${info.templateName} | 任务 ${pilot.missions} | 击杀 ${pilot.kills}</div>
+                    <div style="width:150px; height:8px; background:#333; margin-top:4px;">
+                        <div style="width:${Math.floor(expRatio * 100)}%; height:100%; background:#00d4ff;"></div>
+                    </div>
+                    <div style="font-size:11px; color:#888;">EXP: ${pilot.exp}/${pilot.expToNext}</div>
+                </div>
+            </div>
+            <div style="margin-top:8px; font-size:12px; color:#aaa;">
+                生命 ${Math.floor(stats.maxHealth)} | 移速 ${stats.maxSpeed.toFixed(1)} | 伤害 ${stats.damage.toFixed(1)} | 瞄准 ${(stats.aimBonus * 100).toFixed(0)}% | 修复 ${(stats.repairBonus * 100).toFixed(0)}%
+            </div>
+            <div style="margin-top:4px; font-size:11px; color:${info.talent ? '#ffaa44' : '#666'}">天赋: ${info.talent ? info.talent.name + ' - ' + info.talent.description : '无'}</div>
+            ${!isActive ? `<button onclick="selectPilot('${pilot.id}')" style="margin-top:8px;">设为出战</button>
+            <button onclick="dismissPilot('${pilot.id}')" style="margin-top:8px; background:#ff4444;">解雇</button>` : '<div style="color:#00d4ff; margin-top:8px; font-size:12px;">当前出战</div>'}
+        </div>`;
+}
+
+window.recruitPilot = function(templateId) {
+    const cost = getRecruitCost(templateId);
+    if (playerSave.money < cost) return;
+    playerSave.money -= cost;
+    const pilot = createPilot(templateId);
+    playerSave.pilots.push(pilot);
+    if (!playerSave.activePilotId) playerSave.activePilotId = pilot.id;
+    saveGame(playerSave);
+    renderPilotsPanel();
+};
+
+window.selectPilot = function(pilotId) {
+    const pilot = playerSave.pilots.find(p => p.id === pilotId);
+    if (!pilot) return;
+    playerSave.activePilotId = pilotId;
+    saveGame(playerSave);
+    renderPilotsPanel();
+};
+
+window.dismissPilot = function(pilotId) {
+    if (playerSave.pilots.length <= 1) {
+        alert('至少需要保留一名驾驶员');
+        return;
+    }
+    playerSave.pilots = playerSave.pilots.filter(p => p.id !== pilotId);
+    if (playerSave.activePilotId === pilotId) {
+        playerSave.activePilotId = playerSave.pilots[0].id;
+    }
+    saveGame(playerSave);
+    renderPilotsPanel();
+};
+
+// ========== 机甲选择 ==========
+function renderMechsPanel() {
+    const panel = document.getElementById('upgradePanel');
+    panel.innerHTML = '';
+    panel.className = 'upgrade-panel';
+
+    panel.innerHTML += `<h3 style="color:#00d4ff; width:100%;">我的机甲</h3>`;
+    for (const mech of playerSave.mechs) {
+        const isActive = mech.id === playerSave.activeMechId;
+        const build = calculateMechBuild(mech.mechBuild);
+        const maxWeight = Math.max(50, build.maxEnergy * 0.8);
+        panel.innerHTML += `
+            <div class="upgrade-item ${isActive ? 'active-card' : ''}" style="border-color:${isActive ? '#00d4ff' : '#333'}">
+                <h4 style="color:${mech.color || '#00d4ff'}">${mech.name}</h4>
+                <div class="level">血量 ${Math.floor(build.maxHealth)} | 能量 ${Math.floor(build.maxEnergy)} | 速度 ${build.maxSpeed.toFixed(1)} | 装甲 ${(build.armor * 100).toFixed(0)}%</div>
+                <div class="cost">重量 ${build.totalWeight.toFixed(1)}/${Math.floor(maxWeight)} kg</div>
+                ${!isActive ? `<button onclick="selectMech('${mech.id}')">设为出战</button>` : '<div style="color:#00d4ff; font-size:12px;">当前出战</div>'}
+                <button onclick="editMechBuild('${mech.id}')" style="margin-top:6px;">编辑组装</button>
+            </div>`;
+    }
+
+    const slotCost = 1000 + playerSave.mechs.length * 1000;
+    const canBuy = playerSave.money >= slotCost;
+    panel.innerHTML += `
+        <div class="upgrade-item">
+            <h4>购买新机甲槽位</h4>
+            <div class="cost">花费: ${slotCost} 金币</div>
+            <button ${canBuy ? '' : 'disabled'} onclick="buyNewMechSlot()">购买</button>
+        </div>`;
+}
+
+window.selectMech = function(mechId) {
+    const mech = playerSave.mechs.find(m => m.id === mechId);
+    if (!mech) return;
+    playerSave.activeMechId = mechId;
+    saveGame(playerSave);
+    renderMechsPanel();
+};
+
+window.editMechBuild = function(mechId) {
+    const mech = playerSave.mechs.find(m => m.id === mechId);
+    if (!mech) return;
+    window.editingMechId = mechId;
+    playerSave.mechBuild = mech.mechBuild;
+    hangarTab = 'assembly';
+    renderAssemblyPanel();
+};
+
+window.buyNewMechSlot = function() {
+    const cost = 1000 + playerSave.mechs.length * 1000;
+    if (playerSave.money < cost) return;
+    playerSave.money -= cost;
+    const newMech = createDefaultPlayerMech();
+    newMech.name = `机甲 ${playerSave.mechs.length + 1}`;
+    playerSave.mechs.push(newMech);
+    if (!playerSave.activeMechId) playerSave.activeMechId = newMech.id;
+    saveGame(playerSave);
+    renderMechsPanel();
+};
+
+// ========== 敌方机甲回收 ==========
+function renderEnemyMechsPanel() {
+    const panel = document.getElementById('upgradePanel');
+    panel.innerHTML = '';
+    panel.className = 'upgrade-panel';
+
+    panel.innerHTML += `<h3 style="color:#00d4ff; width:100%;">敌方机甲回收</h3>`;
+    const templates = getAllEnemyMechTemplates();
+    for (const template of templates) {
+        const unlocked = checkEnemyMechUnlock(playerSave, template.id);
+        const progress = getEnemyMechUnlockProgress(playerSave, template.id);
+        const alreadyOwned = playerSave.mechs.some(m => m.templateId === template.id);
+        const canBuy = unlocked && !alreadyOwned && playerSave.money >= template.cost;
+        const ratio = progress ? progress.ratio : 0;
+
+        panel.innerHTML += `
+            <div class="upgrade-item" style="border-color:${unlocked ? '#00ff88' : '#333'}">
+                <h4 style="color:${template.color}">${template.name}</h4>
+                <div class="level">${template.description}</div>
+                <div style="width:150px; height:8px; background:#333; margin:6px 0;">
+                    <div style="width:${Math.floor(ratio * 100)}%; height:100%; background:${unlocked ? '#00ff88' : '#ffaa44'};"></div>
+                </div>
+                <div class="cost">${unlocked ? `价格: ${template.cost} 金币` : `解锁: ${template.unlockHint}`}</div>
+                <button ${canBuy ? '' : 'disabled'} onclick="buyEnemyMechForPlayer('${template.id}')">${alreadyOwned ? '已拥有' : (unlocked ? '购买' : '未解锁')}</button>
+            </div>`;
+    }
+}
+
+window.buyEnemyMechForPlayer = async function(templateId) {
+    const { buyEnemyMech } = await import('./enemyMechs.js');
+    const result = buyEnemyMech(playerSave, templateId);
+    if (result.success) {
+        saveGame(playerSave);
+        renderEnemyMechsPanel();
+    } else {
+        alert(result.reason);
+    }
 };

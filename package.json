@@ -9,7 +9,7 @@
     "test:all": "npm run test && npm run test:e2e",
     "serve": "python3 -m http.server 8904",
     "server": "node server/index.js",
-    "lint": "node --check js/main.js && node --check js/ui.js && node --check js/game.js && node --check js/editors.js && node --check js/utils.js && node --check js/classes/Entity.js && node --check js/classes/Mech.js && node --check js/classes/Enemy.js && node --check js/classes/Particle.js && node --check js/classes/Hook.js && node --check js/input.js && node --check data/save.js && node --check js/modules.js && node --check js/weapons.js && node --check js/blueprints.js && node --check js/inventory.js && node --check js/net/NetworkManager.js && node --check js/net/OnlineGame.js && node --check server/index.js"
+    "lint": "node --check js/main.js && node --check js/ui.js && node --check js/game.js && node --check js/editors.js && node --check js/utils.js && node --check js/classes/Entity.js && node --check js/classes/Mech.js && node --check js/classes/Enemy.js && node --check js/classes/Particle.js && node --check js/classes/Hook.js && node --check js/input.js && node --check data/save.js && node --check js/modules.js && node --check js/weapons.js && node --check js/blueprints.js && node --check js/inventory.js && node --check js/pilots.js && node --check js/enemyMechs.js && node --check js/net/NetworkManager.js && node --check js/net/OnlineGame.js && node --check server/index.js"
   },
   "keywords": [
     "game",

@@ -3,6 +3,8 @@ import { keys, bullets, particles, footprints, hooks, obstacles, enemies, drops,
 import { ENEMY_TEMPLATES, LEVELS } from './enemies.js';
 import { WEAPONS } from './weapons.js';
 import { addMoneyExp } from '../data/save.js';
+import { createPilot, applyPilotToMech, applyPilotToPilotEntity, addPilotExp } from './pilots.js';
+import { recordEnemyKill } from './enemyMechs.js';
 import Mech from './classes/Mech.js';
 import Enemy from './classes/Enemy.js';
 import Pilot from './classes/Pilot.js';
@@ -111,17 +113,25 @@ export function startLevel(level, playerSave, multiplayer = false) {
         spawnFortress();
     }
 
+    const activeMech = playerSave.mechs?.find(m => m.id === playerSave.activeMechId) || playerSave.mechs?.[0];
+    const activePilot = playerSave.pilots?.find(p => p.id === playerSave.activePilotId) || playerSave.pilots?.[0];
+    if (activeMech) {
+        playerSave.mechBuild = activeMech.mechBuild;
+    }
+
     const build = calculateMechBuild(playerSave.mechBuild);
     const spawnX = WORLD_WIDTH / 2;
     const spawnY = WORLD_HEIGHT / 2;
 
-    const mechBag = GridInventory.fromJSON(playerSave.mechInventory || {});
+    const mechBag = GridInventory.fromJSON(activeMech?.mechInventory || playerSave.mechInventory || {});
     const pilotBag = GridInventory.fromJSON(playerSave.pilotInventory || {});
     setMechBag(mechBag);
     setPilotBag(pilotBag);
 
     mech = createPlayerMech(spawnX - (multiplayer ? 60 : 0), spawnY, build, playerSave, 'p1');
     mech.inventory = mechBag;
+    if (activeMech?.color) mech.bodyColor = activeMech.color;
+    if (activePilot) applyPilotToMech(mech, activePilot);
     players.push(mech);
     window.mech = mech;
 
@@ -141,6 +151,8 @@ export function startLevel(level, playerSave, multiplayer = false) {
     });
     import('./classes/Hook.js').then(m => m.setMechRef(mech));
 
+    window.activePilot = activePilot || null;
+    window.activeMech = activeMech || null;
     window.mechBag = mechBag;
     window.pilotBag = pilotBag;
     window.players = players;
@@ -489,6 +501,8 @@ function spawnDrops(x, y, template, source) {
         life: 600
     });
     if (source === 'enemy') {
+        recordEnemyKill(_currentPlayerSave, template.drawType);
+
         if (Math.random() < 0.3) {
             const repairAmount = Math.floor(Math.random() * 2) + 1;
             const item = new InventoryItem('repairKit', repairAmount);
@@ -517,6 +531,7 @@ function ejectPilot() {
     mech.isPilotEjected = true;
     pilot = new Pilot(mech.x, mech.y);
     pilot.inventory = window.pilotBag;
+    if (window.activePilot) applyPilotToPilotEntity(pilot, window.activePilot);
     particles.push(...createSpark(mech.x, mech.y, '#ffcc00', 10, 4));
 }
 
@@ -1096,6 +1111,10 @@ function showMissionResult(won) {
 
     if (won) {
         addMoneyExp(playerSave, missionMoney, missionExp, missionMaterials);
+        // 分配经验给出战驾驶员
+        if (window.activePilot) {
+            addPilotExp(window.activePilot, missionExp);
+        }
         if (currentLevel && !playerSave.levelsCompleted.includes(currentLevel.id)) {
             playerSave.levelsCompleted.push(currentLevel.id);
             playerSave.highestLevel = Math.max(playerSave.highestLevel, currentLevel.id);
@@ -1105,6 +1124,14 @@ function showMissionResult(won) {
     }
     if (window.mechBag) playerSave.mechInventory = window.mechBag.toJSON();
     if (window.pilotBag) playerSave.pilotInventory = window.pilotBag.toJSON();
+    // 同步当前出战机甲的 build 和 inventory
+    if (window.activeMech) {
+        const idx = playerSave.mechs.findIndex(m => m.id === window.activeMech.id);
+        if (idx >= 0) {
+            playerSave.mechs[idx].mechBuild = JSON.parse(JSON.stringify(window.activeMech.mechBuild || playerSave.mechBuild));
+            playerSave.mechs[idx].mechInventory = window.mechBag.toJSON();
+        }
+    }
     saveGame(playerSave);
     setPlayerSave(playerSave);
     if (window.hideInventory) window.hideInventory();
