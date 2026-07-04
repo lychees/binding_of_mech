@@ -77,6 +77,19 @@ export const ENEMY_TEMPLATES = {
         drawType: 'medic',
         money: 25,
         exp: 12
+    },
+    fortress: {
+        name: '移动要塞',
+        size: 80,
+        color: '#ff4444',
+        health: 2000,
+        speed: 0,
+        fireRate: 120,
+        detectionRange: 700,
+        weapon: 'CANNON',
+        drawType: 'fortress',
+        money: 500,
+        exp: 200
     }
 };
 
