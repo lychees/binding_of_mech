@@ -12,6 +12,7 @@ import { initOnlineGame, setNetworkManager, resetOnlineGame, handleNetworkMessag
 import { GridInventory, InventoryItem, ITEM_RARITY } from './inventory.js?v=2';
 import { PILOT_TEMPLATES, getPilotDisplayInfo, createPilot, getRecruitCost, pilotExpToNext, addPilotExp, calculatePilotStats } from './pilots.js?v=2';
 import { ENEMY_MECH_TEMPLATES, getAllEnemyMechTemplates, getEnemyMechUnlockProgress, checkEnemyMechUnlock, buyEnemyMech, createPlayerMechFromTemplate, getEnemyMechTemplate } from './enemyMechs.js?v=2';
+import { MECH_BLUEPRINTS, getAllMechBlueprints, isMechBlueprintUnlocked, unlockMechBlueprint, buyMechFromBlueprint, createMechFromBlueprint } from './mechBlueprints.js?v=2';
 
 let playerSave = loadSave();
 let selectedAssemblySlot = null;
@@ -438,6 +439,7 @@ window.switchHangarTab = function(tab) {
     document.querySelectorAll('.hangar-tab').forEach(t => t.classList.remove('active'));
     event.target.classList.add('active');
     if (tab === 'assembly') renderAssemblyPanel();
+    else if (tab === 'blueprints') renderMechBlueprintsPanel();
     else if (tab === 'pilots') renderPilotsPanel();
     else if (tab === 'mechs') renderMechsPanel();
     else if (tab === 'enemyMechs') renderEnemyMechsPanel();
@@ -448,6 +450,7 @@ function updateHangarUI() {
     document.getElementById('resourceBar').textContent =
         `金币: ${playerSave.money} | 经验: ${playerSave.exp} | 材料: ${playerSave.materials} | 等级: ${playerSave.level}`;
     if (hangarTab === 'assembly') renderAssemblyPanel();
+    else if (hangarTab === 'blueprints') renderMechBlueprintsPanel();
     else if (hangarTab === 'pilots') renderPilotsPanel();
     else if (hangarTab === 'mechs') renderMechsPanel();
     else if (hangarTab === 'enemyMechs') renderEnemyMechsPanel();
@@ -994,6 +997,43 @@ window.dismissPilot = function(pilotId) {
     renderPilotsPanel();
 };
 
+// ========== 机甲蓝图研发中心 ==========
+function renderMechBlueprintsPanel() {
+    const panel = document.getElementById('upgradePanel');
+    panel.innerHTML = '';
+    panel.className = 'upgrade-panel';
+
+    panel.innerHTML += `<h3 style="color:#00d4ff; width:100%;">机甲蓝图研发中心</h3>
+        <div style="width:100%; color:#888; font-size:13px; margin-bottom:10px;">花费金币解锁新机甲框架，解锁后可在机甲选择中购买并出战。</div>`;
+
+    const blueprints = getAllMechBlueprints();
+    for (const bp of blueprints) {
+        const unlocked = isMechBlueprintUnlocked(playerSave, bp.id);
+        const tier = MECH_BLUEPRINT_TIERS[bp.tier];
+        const canUnlock = !unlocked && playerSave.money >= bp.cost;
+        const owned = playerSave.mechs.some(m => m.blueprintId === bp.id);
+
+        panel.innerHTML += `
+            <div class="upgrade-item" style="border-color:${unlocked ? '#00ff88' : '#333'}">
+                <h4 style="color:${tier.color}">${bp.name} <span style="font-size:11px;">[${tier.name}]</span></h4>
+                <div class="level">${bp.description}</div>
+                <div class="cost" style="color:${unlocked ? '#00ff88' : '#ffaa44'}">${unlocked ? '已解锁' : `解锁费用: ${bp.cost} 金币`}</div>
+                <div style="font-size:12px; color:#888; margin:4px 0;">${owned ? '已拥有' : (unlocked ? '可在机甲选择中购买' : '')}</div>
+                <button ${canUnlock ? '' : 'disabled'} onclick="unlockMechBlueprintForPlayer('${bp.id}')">${unlocked ? '已解锁' : '解锁蓝图'}</button>
+            </div>`;
+    }
+}
+
+window.unlockMechBlueprintForPlayer = function(blueprintId) {
+    const result = unlockMechBlueprint(playerSave, blueprintId);
+    if (result.success) {
+        saveGame(playerSave);
+        updateHangarUI();
+    } else {
+        alert(result.reason);
+    }
+};
+
 // ========== 机甲选择 ==========
 function renderMechsPanel() {
     const panel = document.getElementById('upgradePanel');
@@ -1023,6 +1063,22 @@ function renderMechsPanel() {
             <div class="cost">花费: ${slotCost} 金币</div>
             <button ${canBuy ? '' : 'disabled'} onclick="buyNewMechSlot()">购买</button>
         </div>`;
+
+    panel.innerHTML += `<h3 style="color:#00d4ff; width:100%; margin-top:10px;">从蓝图生产新机甲</h3>`;
+    const blueprints = getAllMechBlueprints();
+    for (const bp of blueprints) {
+        if (bp.starting) continue;
+        const unlocked = isMechBlueprintUnlocked(playerSave, bp.id);
+        const owned = playerSave.mechs.some(m => m.blueprintId === bp.id);
+        if (!unlocked || owned) continue;
+        const tier = MECH_BLUEPRINT_TIERS[bp.tier];
+        panel.innerHTML += `
+            <div class="upgrade-item" style="border-color:${tier.color}">
+                <h4 style="color:${tier.color}">${bp.name}</h4>
+                <div class="level">${bp.description}</div>
+                <button onclick="buyMechWithBlueprint('${bp.id}')">生产</button>
+            </div>`;
+    }
 }
 
 window.selectMech = function(mechId) {
@@ -1054,6 +1110,16 @@ window.buyNewMechSlot = function() {
     renderMechsPanel();
 };
 
+window.buyMechWithBlueprint = function(blueprintId) {
+    const result = buyMechFromBlueprint(playerSave, blueprintId);
+    if (result.success) {
+        saveGame(playerSave);
+        renderMechsPanel();
+    } else {
+        alert(result.reason);
+    }
+};
+
 // ========== 敌方机甲回收 ==========
 function renderEnemyMechsPanel() {
     const panel = document.getElementById('upgradePanel');
@@ -1083,7 +1149,7 @@ function renderEnemyMechsPanel() {
 }
 
 window.buyEnemyMechForPlayer = async function(templateId) {
-    const { buyEnemyMech } = await import('./enemyMechs.js');
+    const { buyEnemyMech } = await import('./enemyMechs.js?v=2');
     const result = buyEnemyMech(playerSave, templateId);
     if (result.success) {
         saveGame(playerSave);

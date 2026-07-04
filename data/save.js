@@ -1,6 +1,6 @@
-import { GridInventory, createDefaultMechInventory, createDefaultPilotInventory } from '../js/inventory.js';
-import { createPilot } from '../js/pilots.js';
-import { createDefaultPlayerMech } from '../js/enemyMechs.js';
+import { GridInventory, createDefaultMechInventory, createDefaultPilotInventory } from '../js/inventory.js?v=2';
+import { createPilot } from '../js/pilots.js?v=2';
+import { createDefaultPlayerMech } from '../js/enemyMechs.js?v=2';
 
 // 存档系统
 const SAVE_KEY = 'mech_game_save';
@@ -57,6 +57,9 @@ export function migrateSave(data) {
     }
     if (!data.enemyMechsUnlocked) {
         data.enemyMechsUnlocked = [];
+    }
+    if (!data.mechBlueprintsUnlocked) {
+        data.mechBlueprintsUnlocked = [];
     }
     if (!data.pilots) {
         data.pilots = [createPilot('rookie', '阿尔法')];
@@ -155,6 +158,7 @@ export function createDefaultSave() {
         activeMechId: defaultMech.id,
         enemyKillRecord: {},
         enemyMechsUnlocked: [],
+        mechBlueprintsUnlocked: [],
         researchedModules: ['C_STANDARD', 'H_STANDARD', 'A_STANDARD', 'L_STANDARD', 'CO_STANDARD', 'W_VULCAN', 'W_SHOTGUN', 'W_CANNON', 'W_LASER', 'W_BEAM_SWORD'],
         blueprints: [],
         // 保留旧版字段用于兼容
