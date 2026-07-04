@@ -307,6 +307,7 @@ function startLevel(level) {
     // 创建机甲（基于模块化组装配置）
     const build = calculateMechBuild(playerSave.mechBuild);
     mech = new Mech(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+    window.mech = mech; // 暴露到全局便于调试
     mech.maxSpeed = build.maxSpeed;
     mech.dashMaxCooldown = build.dashCooldown;
     mech.maxHealth = build.maxHealth;
@@ -340,19 +341,39 @@ function startLevel(level) {
         equippedWeapons.push(playerSave.mechBuild.weaponLeft.moduleId);
     }
     if (playerSave.mechBuild.weaponRight && playerSave.mechBuild.weaponRight.moduleId) {
-        equippedWeapons.push(playerSave.mechBuild.weaponRight.moduleId);
+        // 避免重复装备同一模块
+        if (playerSave.mechBuild.weaponRight.moduleId !== playerSave.mechBuild.weaponLeft.moduleId) {
+            equippedWeapons.push(playerSave.mechBuild.weaponRight.moduleId);
+        }
     }
+    // 初始解锁所有武器：允许同时装备多个武器槽
+    const allWeaponKeys = Object.keys(WEAPONS);
+    // 先加载已装备的模块
+    const loadedKeys = new Set();
     equippedWeapons.forEach(moduleId => {
         const m = ALL_MODULES[moduleId];
         if (!m || !m.weaponKey) return;
+        loadedKeys.add(m.weaponKey);
         const w = weaponEditorData[m.weaponKey];
-        const partLevel = playerSave.mechBuild[moduleId === playerSave.mechBuild.weaponLeft.moduleId ? 'weaponLeft' : 'weaponRight'].level;
+        const slot = moduleId === playerSave.mechBuild.weaponLeft?.moduleId ? 'weaponLeft' : 'weaponRight';
+        const partLevel = playerSave.mechBuild[slot]?.level || 1;
         const multiplier = 1 + (partLevel - 1) * 0.1;
         weaponList.push({
             ...w,
             damage: w.damage * multiplier * (1 + build.damageBonus),
             fireRate: Math.max(1, w.fireRate * (1 - (partLevel - 1) * 0.05)) / build.reloadSpeed,
             spread: w.spread * (1 - (partLevel - 1) * 0.1) * (1 - build.aimBonus)
+        });
+    });
+    // 将剩余已解锁的武器也加入武器轮盘
+    allWeaponKeys.forEach(key => {
+        if (loadedKeys.has(key)) return;
+        const w = weaponEditorData[key];
+        weaponList.push({
+            ...w,
+            damage: w.damage * (1 + build.damageBonus),
+            fireRate: Math.max(1, w.fireRate) / build.reloadSpeed,
+            spread: w.spread * (1 - build.aimBonus)
         });
     });
     if (weaponList.length === 0) {
