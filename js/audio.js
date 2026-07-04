@@ -173,6 +173,44 @@ export function playHookHitSound() {
     osc.stop(t + 0.15);
 }
 
+export function playHookBoostSound() {
+    const context = getCtx();
+    const t = context.currentTime;
+    
+    // 使用白噪声模拟压缩空气喷射
+    const source = context.createBufferSource();
+    source.buffer = getNoiseBuffer();
+    
+    const filter = context.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(1200, t);
+    filter.frequency.exponentialRampToValueAtTime(400, t + 0.18);
+    filter.Q.setValueAtTime(1.5, t);
+    
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.18, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+    
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(context.destination);
+    source.start(t);
+    source.stop(t + 0.22);
+    
+    // 叠加一个低频的轰鸣感
+    const osc = context.createOscillator();
+    const oscGain = context.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(120, t);
+    osc.frequency.exponentialRampToValueAtTime(60, t + 0.2);
+    oscGain.gain.setValueAtTime(0.06, t);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+    osc.connect(oscGain);
+    oscGain.connect(context.destination);
+    osc.start(t);
+    osc.stop(t + 0.22);
+}
+
 export function playRepairSound() {
     const context = getCtx();
     const t = context.currentTime;

@@ -1,5 +1,5 @@
-import { keys, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT } from '../config.js';
-import { playHookSound, playHookHitSound } from '../audio.js';
+import { keys, obstacles, cameraX, cameraY, WORLD_WIDTH, WORLD_HEIGHT, particles } from '../config.js';
+import { playHookSound, playHookHitSound, playHookBoostSound } from '../audio.js';
 
 // mech 由主模块设置
 let mechRef = null;
@@ -21,6 +21,8 @@ class Hook {
         this.hookX = x;
         this.hookY = y;
         this.hitSoundPlayed = false;
+        this.boostTimer = 0;
+        this.justHooked = false;
     }
     
     update(mech) {
@@ -52,12 +54,6 @@ class Hook {
             
             // 地面碰撞检测（任何位置都可以钩住）
             if (this.state === 'flying') {
-                // 按空格键钩住地面
-                if (keys[' ']) {
-                    this.state = 'hooked';
-                    this.hookX = this.hookX;
-                    this.hookY = this.hookY;
-                }
                 // 如果飞行距离达到最大长度，自动钩住
                 if (this.length >= this.maxLength) {
                     this.state = 'hooked';
@@ -66,6 +62,13 @@ class Hook {
                 }
             }
         } else if (this.state === 'hooked') {
+            if (!this.justHooked) {
+                this.justHooked = true;
+                if (!this.hitSoundPlayed) {
+                    playHookHitSound();
+                    this.hitSoundPlayed = true;
+                }
+            }
             // 拉拽机甲向钩爪点，但允许玩家自由移动
             const mech = mechRef;
             if (!mech) return;
@@ -90,6 +93,16 @@ class Hook {
                 const pullSpeed = 35;
                 mech.velocityX += (dx / dist) * pullSpeed * 0.5;
                 mech.velocityY += (dy / dist) * pullSpeed * 0.5;
+                
+                // 立体机动：被拉拽时持续播放压缩空气喷射
+                this.spawnGasParticles(mech, dx, dy, dist);
+                this.boostTimer--;
+                if (this.boostTimer <= 0) {
+                    playHookBoostSound();
+                    this.boostTimer = 12; // 每 12 帧播放一次
+                }
+            } else {
+                this.boostTimer = 0;
             }
         } else if (this.state === 'retracting') {
             this.length -= this.speed * 1.5;
@@ -100,6 +113,52 @@ class Hook {
         
         if (this.life <= 0) {
             this.state = 'done';
+        }
+    }
+    
+    spawnGasParticles(mech, dx, dy, dist) {
+        // 计算绳索方向
+        const nx = dx / dist;
+        const ny = dy / dist;
+        
+        // 在机甲背部两侧喷射压缩空气
+        const totalAngle = mech.bodyAngle;
+        const cos = Math.cos(totalAngle);
+        const sin = Math.sin(totalAngle);
+        
+        // 背部左右两个喷射口（相对机体）
+        const nozzles = [
+            { ox: -12, oy: -10 },
+            { ox: 12, oy: -10 },
+            { ox: 0, oy: -16 }
+        ];
+        
+        for (const n of nozzles) {
+            // 将局部偏移旋转到世界坐标
+            const wx = mech.x + (n.ox * cos - n.oy * sin);
+            const wy = mech.y + (n.ox * sin + n.oy * cos);
+            
+            // 喷射方向大致与拉拽方向相反（向斜后方喷出）
+            for (let k = 0; k < 3; k++) {
+                const spreadAngle = (Math.random() - 0.5) * 0.8;
+                const cosS = Math.cos(spreadAngle);
+                const sinS = Math.sin(spreadAngle);
+                // 喷射方向为拉拽反方向加上随机散布
+                const pvx = (-nx * cosS - -ny * sinS) * (2 + Math.random() * 3);
+                const pvy = (-nx * sinS + -ny * cosS) * (2 + Math.random() * 3);
+                
+                const speed = 2 + Math.random() * 4;
+                const pvx2 = -nx * speed + (Math.random() - 0.5) * 2;
+                const pvy2 = -ny * speed + (Math.random() - 0.5) * 2;
+                
+                particles.push(new Particle(
+                    wx, wy,
+                    pvx2, pvy2,
+                    Math.random() < 0.5 ? 'rgba(200,230,255,0.8)' : 'rgba(255,255,255,0.6)',
+                    2 + Math.random() * 3,
+                    true
+                ));
+            }
         }
     }
     
