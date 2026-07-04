@@ -35,6 +35,10 @@ let animationId = null;
 let fortress = null;
 let fortressMinions = [];
 const floatingTexts = [];
+let evacuationPoint = null;
+let evacuationHoldTime = 0;
+const EVACUATION_HOLD_REQUIRED = 90; // 约 1.5 秒
+let evacuationPromptShown = false;
 
 // 玩家存档
 let playerSave = loadSave();
@@ -268,6 +272,8 @@ window.handleWeaponImport = function(e) {
 
 // ========== 游戏核心 ==========
 function startLevel(level) {
+    window.__startLevelCalled = true;
+    window.evacuationPoint = null;
     currentLevel = level;
     missionMoney = 0;
     missionExp = 0;
@@ -285,6 +291,9 @@ function startLevel(level) {
     obstacles.length = 0;
     enemies.length = 0;
     floatingTexts.length = 0;
+    evacuationPoint = null;
+    evacuationHoldTime = 0;
+    evacuationPromptShown = false;
     
     // 隐藏任务完成提示
     document.getElementById('missionResult').style.display = 'none';
@@ -293,6 +302,7 @@ function startLevel(level) {
     generateObstacles();
     generateTrees();
     generateCrates();
+    generateEvacuationPoint();
     
     // 生成敌人
     generateEnemiesForLevel(level);
@@ -466,6 +476,91 @@ function generateCrates() {
             color: type === 'alloySteel' ? '#a0a0a0' : '#4a0080',
             life: 1200
         });
+    }
+}
+
+function generateEvacuationPoint() {
+    window.__evacGenCalled = true;
+    const margin = 150;
+    evacuationPoint = {
+        x: margin + Math.random() * (WORLD_WIDTH - margin * 2),
+        y: margin + Math.random() * (WORLD_HEIGHT - margin * 2),
+        radius: 40,
+        active: true,
+        pulse: 0
+    };
+    window.evacuationPoint = evacuationPoint;
+}
+
+function checkEvacuation() {
+    if (!evacuationPoint || !evacuationPoint.active) return;
+    const target = isPilotActive && pilot && !pilot.isDead ? pilot : mech;
+    const dx = target.x - evacuationPoint.x;
+    const dy = target.y - evacuationPoint.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < evacuationPoint.radius) {
+        // 玩家进入撤离点，可撤离
+        showEvacuationPrompt(true);
+        if (keys['e'] || keys['E']) {
+            evacuationHoldTime++;
+            // 绘制进度圈
+            drawEvacuationProgress(target.x, target.y);
+            if (evacuationHoldTime >= EVACUATION_HOLD_REQUIRED) {
+                evacuateMission();
+            }
+        } else {
+            evacuationHoldTime = 0;
+        }
+    } else {
+        showEvacuationPrompt(false);
+        evacuationHoldTime = 0;
+    }
+}
+
+function drawEvacuationProgress(x, y) {
+    const ratio = evacuationHoldTime / EVACUATION_HOLD_REQUIRED;
+    const sx = x - cameraX;
+    const sy = y - cameraY - 35;
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 12, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = '#00d4ff';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ratio);
+    ctx.stroke();
+}
+
+function evacuateMission() {
+    gameRunning = false;
+    // 撤离奖励：保留已获得奖励，无额外通关奖励
+    showMissionResult(true);
+    // 标记为撤离而非全清
+    const resultTitle = document.getElementById('resultTitle');
+    if (resultTitle) resultTitle.textContent = '撤离成功';
+    if (evacuationPoint) evacuationPoint.active = false;
+}
+
+function showEvacuationPrompt(show) {
+    let prompt = document.getElementById('evacuationPrompt');
+    if (!prompt) {
+        prompt = document.createElement('div');
+        prompt.id = 'evacuationPrompt';
+        prompt.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.85); color:#00d4ff; padding:20px 30px; border:2px solid #00d4ff; border-radius:8px; font-family:monospace; font-size:16px; z-index:300; display:none; text-align:center;';
+        prompt.innerHTML = `
+            <div style="font-size:20px; margin-bottom:10px;">撤离点已就绪</div>
+            <div>长按 [E] 撤离战场</div>
+            <div style="font-size:12px; color:#888; margin-top:8px;">保留当前获得的金币、经验和材料</div>
+        `;
+        document.getElementById('gameContainer').appendChild(prompt);
+    }
+    if (show && !evacuationPromptShown) {
+        prompt.style.display = 'block';
+        evacuationPromptShown = true;
+    } else if (!show && evacuationPromptShown) {
+        prompt.style.display = 'none';
+        evacuationPromptShown = false;
     }
 }
 
@@ -712,6 +807,10 @@ function gameLoop() {
     // 更新和绘制掉落物
     updateDrops();
     
+    // 更新撤离点
+    updateEvacuationPoint();
+    checkEvacuation();
+    
     // 更新浮动文字
     updateFloatingTexts();
     
@@ -719,7 +818,7 @@ function gameLoop() {
     drawMinimap();
     updateHUD();
     
-    // 检查任务完成
+    // 检查任务完成或撤离
     if (enemies.length === 0 && !fortress && gameRunning) {
         gameRunning = false;
         showMissionResult(true);
@@ -1021,40 +1120,6 @@ function drawObstacles() {
     }
 }
 
-function drawMinimap() {
-    const mapSize = 150;
-    const mapX = canvas.width - mapSize - 10;
-    const mapY = canvas.height - mapSize - 10;
-    const scaleX = mapSize / WORLD_WIDTH;
-    const scaleY = mapSize / WORLD_HEIGHT;
-    
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(mapX, mapY, mapSize, mapSize);
-    ctx.strokeStyle = '#555';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(mapX, mapY, mapSize, mapSize);
-    
-    for (let i = 0; i < obstacles.length; i++) {
-        const obs = obstacles[i];
-        ctx.fillStyle = '#666';
-        ctx.fillRect(mapX + obs.x * scaleX, mapY + obs.y * scaleY, Math.max(2, obs.width * scaleX), Math.max(2, obs.height * scaleY));
-    }
-    for (let i = 0; i < enemies.length; i++) {
-        ctx.fillStyle = '#ff4444';
-        ctx.beginPath();
-        ctx.arc(mapX + enemies[i].x * scaleX, mapY + enemies[i].y * scaleY, 2, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    const minimapTarget = isPilotActive && pilot ? pilot : mech;
-    ctx.fillStyle = '#00d4ff';
-    ctx.beginPath();
-    ctx.arc(mapX + minimapTarget.x * scaleX, mapY + minimapTarget.y * scaleY, 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#00d4ff';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(mapX + cameraX * scaleX, mapY + cameraY * scaleY, canvas.width * scaleX, canvas.height * scaleY);
-}
-
 function drawWeaponUI() {
     if (isPilotActive) return; // 驾驶员模式不显示武器UI
     const startX = canvas.width - 150;
@@ -1083,6 +1148,20 @@ function updateHUD() {
     document.getElementById('hudMaterials').textContent = missionMaterials;
     document.getElementById('hudEnemies').textContent = enemies.length;
     document.getElementById('hudRepair').textContent = inventory.repairKits;
+    const hudEvac = document.getElementById('hudEvac');
+    if (hudEvac) {
+        if (evacuationPoint && evacuationPoint.active) {
+            const target = isPilotActive && pilot && !pilot.isDead ? pilot : mech;
+            const dx = target.x - evacuationPoint.x;
+            const dy = target.y - evacuationPoint.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            hudEvac.textContent = dist < evacuationPoint.radius ? '可撤离 (长按 E)' : '已标记';
+            hudEvac.style.color = dist < evacuationPoint.radius ? '#00ff88' : '#00d4ff';
+        } else {
+            hudEvac.textContent = '未激活';
+            hudEvac.style.color = '#888';
+        }
+    }
     
     // 绘制玩家血条（机甲或驾驶员）
     const barWidth = 200;
@@ -1234,7 +1313,102 @@ function updateFloatingTexts() {
     }
 }
 
-// ========== 杂兵编辑器 ==========
+function updateEvacuationPoint() {
+    if (!evacuationPoint || !evacuationPoint.active) return;
+    evacuationPoint.pulse += 0.08;
+    
+    const sx = evacuationPoint.x - cameraX;
+    const sy = evacuationPoint.y - cameraY;
+    if (sx + 60 < 0 || sx - 60 > canvas.width || sy + 60 < 0 || sy - 60 > canvas.height) return;
+    
+    // 外圈脉冲
+    const pulseRadius = evacuationPoint.radius + Math.sin(evacuationPoint.pulse) * 8;
+    ctx.strokeStyle = 'rgba(0, 212, 255, 0.6)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(sx, sy, pulseRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // 内圈
+    ctx.fillStyle = 'rgba(0, 212, 255, 0.2)';
+    ctx.beginPath();
+    ctx.arc(sx, sy, evacuationPoint.radius * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 撤离点标记
+    ctx.fillStyle = '#00d4ff';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('EVAC', sx, sy - evacuationPoint.radius - 12);
+    ctx.textAlign = 'left';
+    
+    // 旋转箭头
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(evacuationPoint.pulse * 0.5);
+    ctx.strokeStyle = '#00d4ff';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i++) {
+        ctx.rotate(Math.PI / 2);
+        ctx.beginPath();
+        ctx.moveTo(evacuationPoint.radius * 0.4, 0);
+        ctx.lineTo(evacuationPoint.radius * 0.7, 0);
+        ctx.lineTo(evacuationPoint.radius * 0.55, -6);
+        ctx.moveTo(evacuationPoint.radius * 0.7, 0);
+        ctx.lineTo(evacuationPoint.radius * 0.55, 6);
+        ctx.stroke();
+    }
+    ctx.restore();
+    
+    // 小地图标记
+    drawMinimap();
+}
+
+function drawMinimap() {
+    const mapSize = 150;
+    const mapX = canvas.width - mapSize - 10;
+    const mapY = canvas.height - mapSize - 10;
+    const scaleX = mapSize / WORLD_WIDTH;
+    const scaleY = mapSize / WORLD_HEIGHT;
+    
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(mapX, mapY, mapSize, mapSize);
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(mapX, mapY, mapSize, mapSize);
+    
+    for (let i = 0; i < obstacles.length; i++) {
+        const obs = obstacles[i];
+        ctx.fillStyle = '#666';
+        ctx.fillRect(mapX + obs.x * scaleX, mapY + obs.y * scaleY, Math.max(2, obs.width * scaleX), Math.max(2, obs.height * scaleY));
+    }
+    // 撤离点小地图标记
+    if (evacuationPoint && evacuationPoint.active) {
+        ctx.fillStyle = '#00d4ff';
+        ctx.beginPath();
+        ctx.arc(mapX + evacuationPoint.x * scaleX, mapY + evacuationPoint.y * scaleY, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#00d4ff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(mapX + evacuationPoint.x * scaleX, mapY + evacuationPoint.y * scaleY, 7, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    for (let i = 0; i < enemies.length; i++) {
+        ctx.fillStyle = '#ff4444';
+        ctx.beginPath();
+        ctx.arc(mapX + enemies[i].x * scaleX, mapY + enemies[i].y * scaleY, 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    const minimapTarget = isPilotActive && pilot ? pilot : mech;
+    ctx.fillStyle = '#00d4ff';
+    ctx.beginPath();
+    ctx.arc(mapX + minimapTarget.x * scaleX, mapY + minimapTarget.y * scaleY, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#00d4ff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(mapX + cameraX * scaleX, mapY + cameraY * scaleY, canvas.width * scaleX, canvas.height * scaleY);
+}
 window.closeEditor = function() {
     document.getElementById('enemyEditor').style.display = 'none';
     document.getElementById('editorOverlay').style.display = 'none';
@@ -1546,6 +1720,10 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('keyup', (e) => {
     keys[e.key] = false;
+    // 撤离时松开 E 重置计数
+    if (e.key === 'e' || e.key === 'E') {
+        evacuationHoldTime = 0;
+    }
 });
 
 // 初始化显示主菜单
