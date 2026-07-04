@@ -10,6 +10,7 @@ import Enemy from './classes/Enemy.js?v=2';
 import Pilot from './classes/Pilot.js?v=2';
 import Bullet from './classes/Bullet.js?v=2';
 import LaserBeam from './classes/LaserBeam.js?v=2';
+import Missile from './classes/Missile.js?v=2';
 import Particle, { createSpark } from './classes/Particle.js?v=2';
 import Fortress from './classes/Fortress.js?v=2';
 import { initAudio, playExplosionSound, playHitSound, playRepairSound, playPickupSound, playBGM, stopBGM } from './audio.js?v=2';
@@ -579,15 +580,84 @@ function destroyMech(target) {
 
 function updateBullets() {
     for (let i = bullets.length - 1; i >= 0; i--) {
-        bullets[i].update();
-        bullets[i].draw();
+        const b = bullets[i];
+        if (b instanceof Missile) {
+            b.update(enemies, players, pilot, isPilotActive);
+        } else {
+            b.update();
+        }
+        b.draw();
 
-        if (bullets[i] instanceof Bullet && !bullets[i].isEnemyBullet) {
+        if (b instanceof Missile) {
+            if (!b.isEnemyBullet) {
+                let hit = false;
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const d = dist(b.x, b.y, enemies[j].x, enemies[j].y);
+                    if (d < enemies[j].size + b.radius) {
+                        const template = ENEMY_TEMPLATES[enemies[j].templateKey];
+                        enemies[j].takeHit(b.damage);
+                        b.explode();
+                        playHitSound();
+                        if (enemies[j].health <= 0) {
+                            spawnDrops(enemies[j].x, enemies[j].y, template, 'enemy');
+                            playExplosionSound('small');
+                            enemies.splice(j, 1);
+                        }
+                        hit = true;
+                        break;
+                    }
+                }
+                if (hit) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+            } else {
+                const targets = [];
+                for (const p of players) {
+                    if (p.health > 0) targets.push({ t: p, r: 20 });
+                }
+                if (isPilotActive && pilot && !pilot.isDead) targets.push({ t: pilot, r: pilot.size + 4 });
+
+                let hit = false;
+                for (const { t, r } of targets) {
+                    if (dist(b.x, b.y, t.x, t.y) < r + b.radius) {
+                        t.takeHit(b.damage || 5);
+                        b.explode();
+                        playHitSound();
+                        particles.push(...createSpark(t.x, t.y, '#00d4ff', 5, 4));
+                        hit = true;
+
+                        if (players.includes(t) && t.health <= 0) {
+                            t.health = 0;
+                            t.isDead = true;
+                            destroyMech(t);
+                            if (!isPilotActive && players.every(p => p.isDead)) {
+                                gameRunning = false;
+                                showMissionResult(false);
+                                return;
+                            }
+                        }
+                        if (t === pilot && pilot.isDead) {
+                            gameRunning = false;
+                            showMissionResult(false);
+                            return;
+                        }
+                        break;
+                    }
+                }
+                if (hit) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+            }
+        }
+
+        if (b instanceof Bullet && !b.isEnemyBullet) {
             for (let j = enemies.length - 1; j >= 0; j--) {
-                const d = dist(bullets[i].x, bullets[i].y, enemies[j].x, enemies[j].y);
-                if (d < enemies[j].size + (bullets[i].radius || 5)) {
+                const d = dist(b.x, b.y, enemies[j].x, enemies[j].y);
+                if (d < enemies[j].size + (b.radius || 5)) {
                     const template = ENEMY_TEMPLATES[enemies[j].templateKey];
-                    enemies[j].takeHit(bullets[i].damage);
+                    enemies[j].takeHit(b.damage);
                     playHitSound();
                     if (enemies[j].health <= 0) {
                         spawnDrops(enemies[j].x, enemies[j].y, template, 'enemy');
@@ -600,7 +670,7 @@ function updateBullets() {
             }
         }
 
-        if (bullets[i] instanceof Bullet && bullets[i].isEnemyBullet) {
+        if (b instanceof Bullet && b.isEnemyBullet) {
             const targets = [];
             for (const p of players) {
                 if (p.health > 0) targets.push({ t: p, r: 20 });
@@ -609,8 +679,8 @@ function updateBullets() {
 
             let hit = false;
             for (const { t, r } of targets) {
-                if (dist(bullets[i].x, bullets[i].y, t.x, t.y) < r + (bullets[i].radius || 5)) {
-                    t.takeHit(bullets[i].damage || 5);
+                if (dist(b.x, b.y, t.x, t.y) < r + (b.radius || 5)) {
+                    t.takeHit(b.damage || 5);
                     playHitSound();
                     particles.push(...createSpark(t.x, t.y, '#00d4ff', 5, 4));
                     hit = true;
@@ -639,18 +709,18 @@ function updateBullets() {
             }
         }
 
-        if (bullets[i] instanceof LaserBeam && !bullets[i].isEnemyBullet) {
-            const cos = Math.cos(bullets[i].angle);
-            const sin = Math.sin(bullets[i].angle);
+        if (b instanceof LaserBeam && !b.isEnemyBullet) {
+            const cos = Math.cos(b.angle);
+            const sin = Math.sin(b.angle);
             for (let j = enemies.length - 1; j >= 0; j--) {
-                const dx = enemies[j].x - bullets[i].x;
-                const dy = enemies[j].y - bullets[i].y;
+                const dx = enemies[j].x - b.x;
+                const dy = enemies[j].y - b.y;
                 const proj = dx * sin + dy * (-cos);
-                const clamped = Math.max(0, Math.min(bullets[i].length, proj));
-                const cx = bullets[i].x + sin * clamped;
-                const cy = bullets[i].y - cos * clamped;
-                if (dist(enemies[j].x, enemies[j].y, cx, cy) < enemies[j].size + bullets[i].width) {
-                    const damage = bullets[i].getDamageAtDistance(clamped);
+                const clamped = Math.max(0, Math.min(b.length, proj));
+                const cx = b.x + sin * clamped;
+                const cy = b.y - cos * clamped;
+                if (dist(enemies[j].x, enemies[j].y, cx, cy) < enemies[j].size + b.width) {
+                    const damage = b.getDamageAtDistance(clamped);
                     enemies[j].takeHit(damage);
                     if (enemies[j].health <= 0) {
                         const template = ENEMY_TEMPLATES[enemies[j].templateKey];
@@ -661,13 +731,14 @@ function updateBullets() {
             }
         }
 
-        if (bullets[i] && bullets[i].life <= 0) {
+        if (b && b.life <= 0) {
+            if (b instanceof Missile) b.explode();
             bullets.splice(i, 1);
         }
     }
 
     for (let i = bullets.length - 1; i >= 0; i--) {
-        if (!(bullets[i] instanceof Bullet || bullets[i] instanceof LaserBeam)) continue;
+        if (!(bullets[i] instanceof Bullet || bullets[i] instanceof LaserBeam || bullets[i] instanceof Missile)) continue;
         for (let j = obstacles.length - 1; j >= 0; j--) {
             const obs = obstacles[j];
             if (bullets[i].x >= obs.x && bullets[i].x <= obs.x + obs.width &&
@@ -679,6 +750,7 @@ function updateBullets() {
                         obstacles.splice(j, 1);
                     }
                 }
+                if (bullets[i] instanceof Missile) bullets[i].explode();
                 bullets.splice(i, 1);
                 break;
             }

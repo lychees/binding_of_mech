@@ -3,6 +3,7 @@ import { playShootSound } from '../audio.js?v=2';
 import { WEAPONS } from '../weapons.js?v=2';
 import Bullet from './Bullet.js?v=2';
 import LaserBeam from './LaserBeam.js?v=2';
+import Missile from './Missile.js?v=2';
 import Entity from './Entity.js?v=2';
 import Particle, { createFlame, createSpark, createJet, createSmoke } from './Particle.js?v=2';
 import Hook from './Hook.js?v=2';
@@ -112,6 +113,20 @@ const WEAPON_RENDERERS = {
             ctx.fill();
         }
         ctx.restore();
+    },
+    missile(ctx, w) {
+        ctx.fillStyle = w.color;
+        ctx.fillRect(-w.barrelWidth / 2, -w.barrelLength, w.barrelWidth, w.barrelLength);
+        ctx.fillStyle = '#ff4422';
+        ctx.fillRect(-w.barrelWidth / 2 - 2, -w.barrelLength - 4, w.barrelWidth + 4, 6);
+        ctx.fillStyle = '#ff8844';
+        ctx.fillRect(-w.barrelWidth / 2 - 1, -w.barrelLength - 8, w.barrelWidth + 2, 4);
+        ctx.fillStyle = '#444';
+        ctx.fillRect(-3, -w.barrelLength + 4, 6, w.barrelLength - 8);
+        ctx.fillStyle = '#666';
+        ctx.beginPath();
+        ctx.arc(0, -w.barrelLength * 0.4, 4, 0, Math.PI * 2);
+        ctx.fill();
     }
 };
 
@@ -773,6 +788,19 @@ class Mech extends Entity {
         } else if (w.drawType === 'laser') {
             // 激光现在在 updateLaserCharge 中处理
             return;
+        } else if (w.drawType === 'missile') {
+            let target = null;
+            if (w.homing) {
+                let best = null;
+                let bestD = Infinity;
+                for (const e of window.enemies || []) {
+                    if (e.isDead || e.health <= 0) continue;
+                    const d = dist(muzzleX, muzzleY, e.x, e.y);
+                    if (d < bestD) { bestD = d; best = e; }
+                }
+                target = best;
+            }
+            bullets.push(new Missile(muzzleX, muzzleY, totalAngle + (Math.random() - 0.5) * w.spread, w, false, target));
         } else {
             bullets.push(new Bullet(muzzleX, muzzleY, totalAngle + (Math.random() - 0.5) * w.spread * 2, w));
         }

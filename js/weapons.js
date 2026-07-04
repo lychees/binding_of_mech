@@ -87,6 +87,45 @@ export const WEAPONS = {
         swingRange: Math.PI * 0.8,
         swingSpeed: 0.3,
         swingDuration: 15
+    },
+    MISSILE: {
+        name: '导弹发射器',
+        color: '#6a5a4a',
+        muzzleColor: '#ff4422',
+        bulletColor: '#ff8844',
+        bulletSpeed: 6,
+        bulletRadius: 5,
+        fireRate: 35,
+        damage: 35,
+        recoil: 0.8,
+        spread: 0.05,
+        bulletLife: 120,
+        barrelLength: 32,
+        barrelWidth: 12,
+        drawType: 'missile',
+        homing: false,
+        acceleration: 0.2,
+        maxSpeed: 9
+    },
+    HOMING_MISSILE: {
+        name: '追踪导弹',
+        color: '#4a4a8a',
+        muzzleColor: '#ff6644',
+        bulletColor: '#ffaa44',
+        bulletSpeed: 4,
+        bulletRadius: 5,
+        fireRate: 50,
+        damage: 28,
+        recoil: 0.6,
+        spread: 0.08,
+        bulletLife: 160,
+        barrelLength: 34,
+        barrelWidth: 12,
+        drawType: 'missile',
+        homing: true,
+        turnSpeed: 0.07,
+        acceleration: 0.15,
+        maxSpeed: 7
     }
 };
 
@@ -96,7 +135,9 @@ export const WEAPON_UPGRADES = {
     SHOTGUN: { baseCost: 150, maxLevel: 10 },
     CANNON: { baseCost: 200, maxLevel: 10 },
     LASER: { baseCost: 250, maxLevel: 10 },
-    BEAM_SWORD: { baseCost: 300, maxLevel: 10 }
+    BEAM_SWORD: { baseCost: 300, maxLevel: 10 },
+    MISSILE: { baseCost: 300, maxLevel: 10 },
+    HOMING_MISSILE: { baseCost: 400, maxLevel: 10 }
 };
 
 // 根据等级获取武器属性
